@@ -30,8 +30,12 @@ function getOrCreateEntityCache(app: App): Map<string, CachedEntitySet> {
 /**
  * Extract entity map from source paths (name/alias -> entity info)
  *
- * Recognizes markdown files under each sourcePath that have a `name` field
- * in their frontmatter as entities. The `type` field is not required.
+ * Recognizes markdown files under each sourcePath as entities.
+ * Entity name resolution order:
+ *   1. Frontmatter `name` field (string) — highest priority
+ *   2. Filename without `.md` extension — fallback when `name` is absent
+ *
+ * Frontmatter `aliases` (string[]) are recognized with both strategies.
  */
 export function extractEntitiesFromPaths(
   app: App,
@@ -54,21 +58,25 @@ export function extractEntitiesFromPaths(
     const cacheEntry = app.metadataCache.getFileCache(file);
     const fm = cacheEntry?.frontmatter;
 
-    if (!fm?.name || typeof fm.name !== 'string') {
+    const fmName = (fm?.name && typeof fm.name === 'string') ? fm.name : null;
+    const basename = file.path.split('/').pop()?.replace(/\.md$/, '') ?? '';
+
+    if (!fmName && !basename) {
       continue;
     }
 
-    const aliases: string[] = Array.isArray(fm.aliases)
-      ? fm.aliases.filter((alias: unknown): alias is string => typeof alias === 'string')
+    const name = fmName ?? basename;
+    const aliases: string[] = Array.isArray(fm?.aliases)
+      ? fm!.aliases.filter((alias: unknown): alias is string => typeof alias === 'string')
       : [];
 
     const entity: AutolinkEntityInternal = {
       path: file.path,
-      name: fm.name,
+      name,
       aliases,
     };
 
-    entityMap.set(fm.name.toLowerCase(), entity);
+    entityMap.set(name.toLowerCase(), entity);
     for (const alias of aliases) {
       entityMap.set(alias.toLowerCase(), entity);
     }

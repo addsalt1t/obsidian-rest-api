@@ -153,7 +153,7 @@ describe('Autolink Service', () => {
       expect(entityMap.get('hero')!.aliases).toEqual(['Champion']);
     });
 
-    it('should skip files without name in frontmatter', () => {
+    it('should use filename as fallback when name is missing in frontmatter', () => {
       const file1 = createMockTFile({ path: 'entities/hero.md' });
       const file2 = createMockTFile({ path: 'entities/noname.md' });
       const mockFileListCache = {
@@ -178,11 +178,14 @@ describe('Autolink Service', () => {
 
       const entityMap = extractEntitiesFromPaths(mockApp, ['entities']);
 
-      expect(entityMap.size).toBe(1);
+      expect(entityMap.size).toBe(2);
       expect(entityMap.has('hero')).toBe(true);
+      expect(entityMap.get('hero')!.name).toBe('Hero');
+      expect(entityMap.has('noname')).toBe(true);
+      expect(entityMap.get('noname')!.name).toBe('noname');
     });
 
-    it('should skip files without any frontmatter', () => {
+    it('should use filename as fallback when frontmatter is absent', () => {
       const file = createMockTFile({ path: 'entities/bare.md' });
       const mockFileListCache = {
         getMarkdownFiles: vi.fn().mockReturnValue([file]),
@@ -197,7 +200,9 @@ describe('Autolink Service', () => {
 
       const entityMap = extractEntitiesFromPaths(mockApp, ['entities']);
 
-      expect(entityMap.size).toBe(0);
+      expect(entityMap.size).toBe(1);
+      expect(entityMap.has('bare')).toBe(true);
+      expect(entityMap.get('bare')!.name).toBe('bare');
     });
 
     it('should handle multiple source paths', () => {
@@ -277,7 +282,7 @@ describe('Autolink Service', () => {
       expect(duplicated.size).toBe(base.size);
     });
 
-    it('should skip non-string name values', () => {
+    it('should use filename fallback for non-string name values', () => {
       const file = createMockTFile({ path: 'entities/bad.md' });
       const mockFileListCache = {
         getMarkdownFiles: vi.fn().mockReturnValue([file]),
@@ -294,7 +299,60 @@ describe('Autolink Service', () => {
 
       const entityMap = extractEntitiesFromPaths(mockApp, ['entities']);
 
-      expect(entityMap.size).toBe(0);
+      expect(entityMap.size).toBe(1);
+      expect(entityMap.has('bad')).toBe(true);
+      expect(entityMap.get('bad')!.name).toBe('bad');
+    });
+
+    it('should combine filename fallback with aliases', () => {
+      const file = createMockTFile({ path: 'entities/DragonKing.md' });
+      const mockFileListCache = {
+        getMarkdownFiles: vi.fn().mockReturnValue([file]),
+      };
+      vi.mocked(getFileListCache).mockReturnValue(mockFileListCache as any);
+
+      const mockApp = {
+        metadataCache: {
+          getFileCache: vi.fn(() =>
+            createMockCachedMetadata({
+              frontmatter: { aliases: ['Dragon', 'King'] },
+            })
+          ),
+        },
+      } as unknown as App;
+
+      const entityMap = extractEntitiesFromPaths(mockApp, ['entities']);
+
+      expect(entityMap.size).toBe(3); // dragonking + dragon + king
+      expect(entityMap.has('dragonking')).toBe(true);
+      expect(entityMap.get('dragonking')!.name).toBe('DragonKing');
+      expect(entityMap.has('dragon')).toBe(true);
+      expect(entityMap.has('king')).toBe(true);
+    });
+
+    it('should prefer frontmatter name over filename', () => {
+      const file = createMockTFile({ path: 'entities/hero-file.md' });
+      const mockFileListCache = {
+        getMarkdownFiles: vi.fn().mockReturnValue([file]),
+      };
+      vi.mocked(getFileListCache).mockReturnValue(mockFileListCache as any);
+
+      const mockApp = {
+        metadataCache: {
+          getFileCache: vi.fn(() =>
+            createMockCachedMetadata({
+              frontmatter: { name: 'HeroName' },
+            })
+          ),
+        },
+      } as unknown as App;
+
+      const entityMap = extractEntitiesFromPaths(mockApp, ['entities']);
+
+      expect(entityMap.size).toBe(1);
+      expect(entityMap.has('heroname')).toBe(true);
+      expect(entityMap.has('hero-file')).toBe(false);
+      expect(entityMap.get('heroname')!.name).toBe('HeroName');
     });
   });
 
@@ -433,6 +491,37 @@ describe('Autolink Service', () => {
       });
 
       expect(result.byEntity['카이런']).toBeGreaterThanOrEqual(1);
+    });
+
+    it('should find matches using filename-based entities', async () => {
+      const entityFile = createMockTFile({ path: 'entities/TestHero.md', mtime: 1000 });
+      const storyFile = createMockTFile({ path: 'stories/chapter1.md', mtime: 2000 });
+      const mockFileListCache = {
+        getMarkdownFiles: vi.fn().mockReturnValue([entityFile, storyFile]),
+      };
+      vi.mocked(getFileListCache).mockReturnValue(mockFileListCache as any);
+
+      const mockApp = {
+        vault: {
+          cachedRead: vi.fn().mockResolvedValue('TestHero appeared in the story.'),
+        },
+        metadataCache: {
+          getFileCache: vi.fn((file: any) => {
+            if (file.path === 'entities/TestHero.md') {
+              // No name in frontmatter — should fall back to filename
+              return createMockCachedMetadata({ frontmatter: { type: 'character' } });
+            }
+            return null;
+          }),
+        },
+      } as unknown as App;
+
+      const result = await scan(mockApp, {
+        entitySourcePaths: ['entities'],
+      });
+
+      expect(result.totalMatches).toBeGreaterThan(0);
+      expect(result.matches.some(m => m.entityName === 'TestHero')).toBe(true);
     });
 
     it('should provide context around matches', async () => {
