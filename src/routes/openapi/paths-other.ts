@@ -232,7 +232,7 @@ export const otherPaths = {
                 autoConfirm: {
                   type: 'boolean',
                   default: false,
-                  description: 'Apply all confidence levels (default: high only)',
+                  description: 'Compatibility flag. For safety, only high-confidence matches are auto-applied.',
                 },
               },
             },

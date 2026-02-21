@@ -51,7 +51,7 @@ export interface AutolinkLinkifyRequest {
   entitySourcePaths: string[];  // 엔티티를 추출할 소스 폴더 경로들
   targetPaths?: string[];       // 변환 대상 파일 경로 (없으면 소스 경로 하위 전체)
   dryRun?: boolean;             // true면 변환 결과만 반환, 실제 수정 안 함
-  autoConfirm?: boolean;        // true면 모든 매칭 자동 적용 (기본: high만)
+  autoConfirm?: boolean;        // 호환성 플래그(안전상 high confidence만 자동 적용)
 }
 
 /**

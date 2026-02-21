@@ -8,30 +8,65 @@ import {
 } from './constants';
 import type { NameEntry } from './types';
 
-function getScanConfidence(
+function equalsIgnoreCase(a: string, b: string): boolean {
+  return a.toLowerCase() === b.toLowerCase();
+}
+
+function hasAliasCaseInsensitive(entity: NameEntry['entity'], matchedText: string): boolean {
+  return entity.aliases.some(alias => equalsIgnoreCase(alias, matchedText));
+}
+
+function getMatchConfidence(
   matchedText: string,
   entity: NameEntry['entity']
 ): 'high' | 'medium' | 'low' {
   if (matchedText.length <= 2) {
     return 'low';
   }
-  if (entity.aliases.includes(matchedText) && matchedText !== entity.name) {
+
+  if (matchedText === entity.name) {
+    return 'high';
+  }
+
+  if (equalsIgnoreCase(matchedText, entity.name)) {
     return 'medium';
   }
+
+  if (hasAliasCaseInsensitive(entity, matchedText)) {
+    return 'medium';
+  }
+
   return 'high';
+}
+
+function getScanConfidence(
+  matchedText: string,
+  entity: NameEntry['entity']
+): 'high' | 'medium' | 'low' {
+  return getMatchConfidence(matchedText, entity);
 }
 
 function getLinkifyConfidence(
   matchedText: string,
   entity: NameEntry['entity']
 ): 'high' | 'medium' | 'low' {
-  if (matchedText.length <= 2) {
-    return 'low';
+  return getMatchConfidence(matchedText, entity);
+}
+
+function shouldApplyLinkByConfidence(
+  confidence: 'high' | 'medium' | 'low',
+  autoConfirm: boolean
+): boolean {
+  if (confidence === 'high') {
+    return true;
   }
-  if (matchedText.toLowerCase() !== entity.name.toLowerCase()) {
-    return 'medium';
+
+  // Keep autoConfirm for API compatibility, but never auto-apply non-high matches.
+  if (autoConfirm) {
+    return false;
   }
-  return 'high';
+
+  return false;
 }
 
 interface ScanEngineParams {
@@ -152,7 +187,7 @@ export function runLinkifyEngine({
         const matchedText = match[1];
         const particle = match[2] || '';
         const confidence = getLinkifyConfidence(matchedText, entity);
-        const shouldApply = autoConfirm || confidence === 'high';
+        const shouldApply = shouldApplyLinkByConfidence(confidence, autoConfirm);
 
         if (!shouldApply) {
           fileSkipped++;
