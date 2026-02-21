@@ -1,0 +1,10 @@
+{
+  "id": "extended-rest-api",
+  "name": "Extended REST API",
+  "version": "1.0.0",
+  "minAppVersion": "1.4.0",
+  "description": "Extends vault access with a REST API for tags, Dataview queries, batch operations, and MCP integration.",
+  "author": "jedi",
+  "authorUrl": "https://github.com/addsalt1t",
+  "isDesktopOnly": true
+}

@@ -1,0 +1,16 @@
+/* API key input: flexible width instead of fixed */
+.extended-rest-api-input-wide {
+  min-width: 100px;
+  flex: 1 1 auto;
+}
+
+/* API key setting: allow controls to wrap on narrow windows */
+.extended-rest-api-key-setting .setting-item-control {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Prevent label from collapsing on narrow windows */
+.extended-rest-api-key-setting .setting-item-info {
+  min-width: 80px;
+}

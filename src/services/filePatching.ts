@@ -1,0 +1,453 @@
+/**
+ * 파일 패치 서비스
+ * 헤딩, 라인, 프론트매터 키 기반 패치 로직 통합
+ */
+
+import type {
+  PatchOperation,
+  HeadingInfo,
+  HeadingResolveResult,
+} from '@obsidian-workspace/shared-types';
+import { escapeRegExp } from '../utils/regex';
+import { formatYamlValue } from './yaml-formatter';
+
+type LineEnding = '\n' | '\r\n';
+
+interface ParsedHeading {
+  level: number;
+  text: string;
+}
+
+interface HeadingSectionRange {
+  start: number;
+  end: number;
+}
+
+interface HeadingSectionSlices {
+  beforeWithoutHeading: string[];
+  beforeWithHeading: string[];
+  sectionBody: string[];
+  after: string[];
+}
+
+interface HeadingPatchContext {
+  lines: string[];
+  range: HeadingSectionRange;
+  newContent: string;
+}
+
+interface LinePatchContext {
+  lines: string[];
+  index: number;
+  newContent: string;
+}
+
+interface BlockPatchContext {
+  lines: string[];
+  targetIndex: number;
+  newContent: string;
+  blockId: string;
+}
+
+type HeadingPatchHandler = (context: HeadingPatchContext) => string[];
+type LinePatchHandler = (context: LinePatchContext) => void;
+type BlockPatchHandler = (context: BlockPatchContext) => void;
+
+// NOTE: Unlike obsidian-mcp/src/utils/frontmatter.ts which includes optional
+// trailing newline `(?:\r?\n)?`, this pattern omits it intentionally:
+// patching operations need precise --- boundary without consuming trailing newline.
+const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---/;
+const HEADING_PATTERN = /^(#{1,6})\s+(.+)$/;
+const OPERATION_BY_NAME: Record<string, PatchOperation> = {
+  append: 'append',
+  prepend: 'prepend',
+  replace: 'replace',
+  delete: 'delete',
+};
+
+function detectLineEnding(content: string): LineEnding {
+  return content.includes('\r\n') ? '\r\n' : '\n';
+}
+
+/**
+ * 최상위 YAML 경계(다음 키/주석 시작)인지 판단
+ * 멀티라인 값의 잔여 라인을 함께 치환하기 위해 사용
+ */
+const TOP_LEVEL_YAML_KEY_OR_COMMENT = /^(?:#|([^"'#\s][^:]*|".*?"|'.*?')\s*:)/;
+function isTopLevelYamlBoundary(line: string): boolean {
+  const trimmed = line.trim();
+  return trimmed !== '' && !(/^\s/.test(line)) && TOP_LEVEL_YAML_KEY_OR_COMMENT.test(trimmed);
+}
+
+function parseHeadingLine(line: string): ParsedHeading | null {
+  const match = line.match(HEADING_PATTERN);
+  return (match && { level: match[1].length, text: match[2].trim() }) || null;
+}
+
+function trimHeadingStackByLevel(stack: ParsedHeading[], level: number): void {
+  while (stack.length > 0 && stack[stack.length - 1].level >= level) {
+    stack.pop();
+  }
+}
+
+function normalizeOperation(operation: PatchOperation | string): PatchOperation {
+  return OPERATION_BY_NAME[operation] ?? 'replace';
+}
+
+interface PatchResult {
+  content: string;
+  found: boolean;
+}
+
+export type { HeadingInfo, HeadingResolveResult };
+
+/**
+ * 헤딩 텍스트로 전체 경로를 해석
+ * @param content - 파일 내용
+ * @param headingText - 찾을 헤딩 텍스트 (예: "Subsection")
+ * @returns 해석 결과 (찾은 헤딩들과 중복 여부)
+ */
+export function resolveHeadingPath(content: string, headingText: string): HeadingResolveResult {
+  const lines = content.split('\n');
+  const headingStack: ParsedHeading[] = [];
+  const foundHeadings: HeadingInfo[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const parsedHeading = parseHeadingLine(lines[i]);
+    if (!parsedHeading) {
+      continue;
+    }
+
+    trimHeadingStackByLevel(headingStack, parsedHeading.level);
+    headingStack.push(parsedHeading);
+
+    if (parsedHeading.text === headingText) {
+      foundHeadings.push({
+        level: parsedHeading.level,
+        text: parsedHeading.text,
+        fullPath: headingStack.map((h) => h.text).join('::'),
+        line: i,
+      });
+    }
+  }
+
+  if (foundHeadings.length === 0) {
+    return {
+      headings: [],
+      ambiguous: false,
+      error: `Heading '${headingText}' not found`,
+    };
+  }
+
+  return {
+    headings: foundHeadings,
+    ambiguous: foundHeadings.length > 1,
+  };
+}
+
+const HEADING_BOUNDARY_PATTERN = /^(#{1,6})(\s|$)/;
+
+function findHeadingSectionEnd(lines: string[], startLine: number, level: number): number {
+  for (let i = startLine; i < lines.length; i++) {
+    const match = lines[i].match(HEADING_BOUNDARY_PATTERN);
+    if (match && match[1].length <= level) {
+      return i;
+    }
+  }
+  return lines.length;
+}
+
+function findHeadingSectionByPath(lines: string[], headingPath: string[]): HeadingSectionRange | null {
+  let currentLevel = 0;
+  let targetStartIndex = -1;
+  let currentPathIndex = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const heading = parseHeadingLine(lines[i]);
+    if (!heading) {
+      continue;
+    }
+
+    const pathMatched =
+      currentPathIndex < headingPath.length && heading.text === headingPath[currentPathIndex];
+    if (pathMatched) {
+      const isTarget = currentPathIndex === headingPath.length - 1;
+      currentPathIndex++;
+      if (!isTarget) {
+        continue;
+      }
+      targetStartIndex = i;
+      currentLevel = heading.level;
+      continue;
+    }
+
+    if (targetStartIndex !== -1 && heading.level <= currentLevel) {
+      return { start: targetStartIndex, end: i };
+    }
+  }
+
+  return targetStartIndex !== -1 ? { start: targetStartIndex, end: lines.length } : null;
+}
+
+function findHeadingSectionByTitle(lines: string[], title: string): HeadingSectionRange | null {
+  for (let i = 0; i < lines.length; i++) {
+    const heading = parseHeadingLine(lines[i]);
+    if (!heading || heading.text !== title) {
+      continue;
+    }
+    return {
+      start: i,
+      end: findHeadingSectionEnd(lines, i + 1, heading.level),
+    };
+  }
+  return null;
+}
+
+function resolveHeadingSection(lines: string[], headingPath: string[]): HeadingSectionRange | null {
+  return findHeadingSectionByPath(lines, headingPath)
+    ?? findHeadingSectionByTitle(lines, headingPath[headingPath.length - 1]);
+}
+
+function splitHeadingSection(lines: string[], range: HeadingSectionRange): HeadingSectionSlices {
+  return {
+    beforeWithoutHeading: lines.slice(0, range.start),
+    beforeWithHeading: lines.slice(0, range.start + 1),
+    sectionBody: lines.slice(range.start + 1, range.end),
+    after: lines.slice(range.end),
+  };
+}
+
+const HEADING_PATCH_HANDLERS: Record<PatchOperation, HeadingPatchHandler> = {
+  append: ({ lines, range, newContent }) => {
+    const section = splitHeadingSection(lines, range);
+    return [...section.beforeWithHeading, ...section.sectionBody, newContent, ...section.after];
+  },
+  prepend: ({ lines, range, newContent }) => {
+    const section = splitHeadingSection(lines, range);
+    return [...section.beforeWithHeading, newContent, ...section.sectionBody, ...section.after];
+  },
+  replace: ({ lines, range, newContent }) => {
+    const section = splitHeadingSection(lines, range);
+    return [...section.beforeWithHeading, newContent, ...section.after];
+  },
+  delete: ({ lines, range }) => {
+    const section = splitHeadingSection(lines, range);
+    return [...section.beforeWithoutHeading, ...section.after];
+  },
+};
+
+/**
+ * 헤딩 기반 패치
+ * @param content - 원본 파일 내용
+ * @param heading - 헤딩 경로 (예: "Section::Subsection")
+ * @param operation - 패치 작업 유형
+ * @param newContent - 새로운 내용
+ */
+export function patchByHeading(
+  content: string,
+  heading: string,
+  operation: PatchOperation | string,
+  newContent: string
+): PatchResult {
+  const lines = content.split('\n');
+  const headingPath = heading.split('::');
+  const sectionRange = resolveHeadingSection(lines, headingPath);
+
+  if (!sectionRange) {
+    return { content, found: false };
+  }
+
+  const resultLines = HEADING_PATCH_HANDLERS[normalizeOperation(operation)]({
+    lines,
+    range: sectionRange,
+    newContent,
+  });
+
+  return { content: resultLines.join('\n'), found: true };
+}
+
+const LINE_PATCH_HANDLERS: Record<PatchOperation, LinePatchHandler> = {
+  append: ({ lines, index, newContent }) => {
+    lines.splice(index + 1, 0, newContent);
+  },
+  prepend: ({ lines, index, newContent }) => {
+    lines.splice(index, 0, newContent);
+  },
+  replace: ({ lines, index, newContent }) => {
+    lines[index] = newContent;
+  },
+  delete: ({ lines, index }) => {
+    lines.splice(index, 1);
+  },
+};
+
+/**
+ * 라인 기반 패치
+ * @param content - 원본 파일 내용
+ * @param lineNum - 라인 번호 (1-based)
+ * @param operation - 패치 작업 유형
+ * @param newContent - 새로운 내용
+ */
+export function patchByLine(
+  content: string,
+  lineNum: number,
+  operation: PatchOperation | string,
+  newContent: string
+): PatchResult {
+  const lines = content.split('\n');
+  const index = lineNum - 1; // 1-based to 0-based
+
+  if (index < 0 || index >= lines.length) {
+    return { content, found: false };
+  }
+
+  const resultLines = [...lines];
+  LINE_PATCH_HANDLERS[normalizeOperation(operation)]({ lines: resultLines, index, newContent });
+
+  return { content: resultLines.join('\n'), found: true };
+}
+
+function blockIdSuffix(line: string, blockId: string): string {
+  return line.match(/(\s*\^[\w-]+\s*)$/)?.[1] ?? ` ^${blockId}`;
+}
+
+const BLOCK_PATCH_HANDLERS: Record<PatchOperation, BlockPatchHandler> = {
+  append: ({ lines, targetIndex, newContent }) => {
+    lines.splice(targetIndex + 1, 0, newContent);
+  },
+  prepend: ({ lines, targetIndex, newContent }) => {
+    lines.splice(targetIndex, 0, newContent);
+  },
+  replace: ({ lines, targetIndex, newContent, blockId }) => {
+    lines[targetIndex] = newContent.replace(/\s*\^[\w-]+\s*$/, '') + blockIdSuffix(lines[targetIndex], blockId);
+  },
+  delete: ({ lines, targetIndex }) => {
+    lines.splice(targetIndex, 1);
+  },
+};
+
+/**
+ * 블록 ID 기반 패치
+ * @param content - 원본 파일 내용
+ * @param blockId - 블록 ID (^id 형태에서 ^ 제외)
+ * @param operation - 패치 작업 유형
+ * @param newContent - 새로운 내용
+ */
+export function patchByBlock(
+  content: string,
+  blockId: string,
+  operation: PatchOperation | string,
+  newContent: string
+): PatchResult {
+  const lines = content.split('\n');
+  const blockPattern = new RegExp(`\\^${escapeRegExp(blockId)}\\s*$`);
+
+  let targetIndex = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (blockPattern.test(lines[i])) {
+      targetIndex = i;
+      break;
+    }
+  }
+
+  if (targetIndex === -1) {
+    return { content, found: false }; // 블록을 찾지 못함
+  }
+
+  const resultLines = [...lines];
+  BLOCK_PATCH_HANDLERS[normalizeOperation(operation)]({
+    lines: resultLines,
+    targetIndex,
+    newContent,
+    blockId,
+  });
+
+  return { content: resultLines.join('\n'), found: true };
+}
+
+function parseFrontmatterValue(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+function createFrontmatterFieldLines(key: string, value: string): string[] {
+  const yamlValue = formatYamlValue(parseFrontmatterValue(value));
+  return `${key}: ${yamlValue}`.split('\n');
+}
+
+function createFrontmatter(content: string, fieldLines: string[], lineEnding: LineEnding): string {
+  return `---${lineEnding}${fieldLines.join(lineEnding)}${lineEnding}---${lineEnding}${lineEnding}${content}`;
+}
+
+function parseFrontmatterLines(frontmatterBody: string): string[] {
+  return (frontmatterBody && frontmatterBody.split(/\r?\n/)) || [];
+}
+
+function findFrontmatterKeyIndex(frontmatterLines: string[], key: string): number {
+  const keyLineRegex = new RegExp(`^${escapeRegExp(key)}\\s*:\\s*(?:.*)$`);
+  return frontmatterLines.findIndex((line) => keyLineRegex.test(line));
+}
+
+function findFrontmatterValueEnd(frontmatterLines: string[], startIndex: number): number {
+  let endIndex = startIndex + 1;
+  while (endIndex < frontmatterLines.length) {
+    const line = frontmatterLines[endIndex];
+    const indent = (line.match(/^\s*/) ?? [''])[0].length;
+    if (indent <= 0 && isTopLevelYamlBoundary(line)) {
+      return endIndex;
+    }
+    endIndex++;
+  }
+  return endIndex;
+}
+
+function upsertFrontmatterLines(
+  frontmatterBody: string,
+  key: string,
+  newFieldLines: string[]
+): string[] {
+  const frontmatterLines = parseFrontmatterLines(frontmatterBody);
+  const keyLineIndex = findFrontmatterKeyIndex(frontmatterLines, key);
+
+  if (keyLineIndex === -1) {
+    return [...frontmatterLines, ...newFieldLines];
+  }
+
+  const endIndex = findFrontmatterValueEnd(frontmatterLines, keyLineIndex);
+  return [
+    ...frontmatterLines.slice(0, keyLineIndex),
+    ...newFieldLines,
+    ...frontmatterLines.slice(endIndex),
+  ];
+}
+
+function replaceFrontmatter(content: string, frontmatterLines: string[], lineEnding: LineEnding): string {
+  const newFrontmatter = frontmatterLines.join(lineEnding);
+  return content.replace(
+    FRONTMATTER_PATTERN,
+    `---${lineEnding}${newFrontmatter}${lineEnding}---`
+  );
+}
+
+/**
+ * 프론트매터 키 패치
+ * @param content - 원본 파일 내용
+ * @param key - 프론트매터 키
+ * @param value - 새로운 값 (JSON 문자열 또는 일반 문자열)
+ */
+export function patchFrontmatterKey(content: string, key: string, value: string): string {
+  const lineEnding = detectLineEnding(content);
+  const newFieldLines = createFrontmatterFieldLines(key, value);
+
+  const frontmatterMatch = content.match(FRONTMATTER_PATTERN);
+
+  if (!frontmatterMatch) {
+    return createFrontmatter(content, newFieldLines, lineEnding);
+  }
+
+  const updatedFrontmatterLines = upsertFrontmatterLines(frontmatterMatch[1], key, newFieldLines);
+  return replaceFrontmatter(content, updatedFrontmatterLines, lineEnding);
+}

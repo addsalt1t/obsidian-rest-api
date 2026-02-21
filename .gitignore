@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+main.js
+main.js.map
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Claude Code
+.claude/*
+!.claude/rules/
+.claude/settings.local.json
+
+# Serena MCP
+.serena/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary files
+*.tmp
+.cache/
+
+# Test coverage
+coverage/
+
+# Lock files (root handles workspaces)
+packages/*/package-lock.json
