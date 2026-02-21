@@ -158,7 +158,7 @@ export class ExtendedRestApiSettingTab extends PluginSettingTab {
     // CORS 설정
     new Setting(containerEl)
       .setName('CORS origins')
-      .setDesc('Allowed origins for CORS (comma-separated, * for all)')
+      .setDesc('Allowed origins for CORS (comma-separated). Default: localhost only')
       .addText(text => text
         .setPlaceholder('*')
         .setValue(this.plugin.settings.corsOrigins)

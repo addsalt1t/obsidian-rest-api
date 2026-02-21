@@ -25,7 +25,7 @@ describe('timingSafeEqual', () => {
 });
 
 describe('createAuthMiddleware', () => {
-  const TEST_API_KEY = 'test-api-key-12345';
+  const TEST_API_KEY = 'test-api-key-1234567890abcdefghi';
 
   function createMockReq(authHeader?: string): Partial<Request> {
     return {
@@ -138,10 +138,10 @@ describe('createAuthMiddleware', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('should accept API key with exactly 16 characters', () => {
-    const key16 = 'abcdefghijklmnop'; // exactly 16 chars
-    const middleware = createAuthMiddleware(() => key16);
-    const req = createMockReq(`Bearer ${key16}`);
+  it('should accept API key with exactly 32 characters', () => {
+    const key32 = 'abcdefghijklmnopqrstuvwxyz012345'; // exactly 32 chars
+    const middleware = createAuthMiddleware(() => key32);
+    const req = createMockReq(`Bearer ${key32}`);
     const res = createMockRes();
     const next = vi.fn();
 

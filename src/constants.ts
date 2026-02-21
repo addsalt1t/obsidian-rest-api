@@ -44,7 +44,7 @@ export const TEXT_BODY_LIMIT = '10mb';
 export const RSA_KEY_SIZE = 4096;
 
 /** 인증서 유효 기간 (년) */
-export const CERT_VALIDITY_YEARS = 10;
+export const CERT_VALIDITY_YEARS = 2;
 
 /** 인증서 조직명 */
 export const CERT_ORG_NAME = 'Obsidian Extended REST API';
@@ -210,7 +210,7 @@ export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
 export const AUTH_SCHEME = 'Bearer';
 
 /** Minimum required API key length (characters) */
-export const MIN_API_KEY_LENGTH = 16;
+export const MIN_API_KEY_LENGTH = 32;
 
 // ============ File Extensions ============
 
