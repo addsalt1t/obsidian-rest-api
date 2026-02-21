@@ -114,7 +114,12 @@ export interface WorkspaceLeaf {
 
 export interface Workspace {
   getActiveFile(): TFile | null;
+  getActiveViewOfType(type: unknown): unknown;
   getLeaf(newLeaf?: boolean): WorkspaceLeaf;
+}
+
+export class MarkdownView {
+  file: TFile | null = null;
 }
 
 export interface PluginManifest {

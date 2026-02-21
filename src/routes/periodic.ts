@@ -186,8 +186,7 @@ export function createPeriodicRouter(app: App): Router {
       });
 
       if (!result.found) {
-        const err = Errors.notFound(result.targetLabel!, { file: notePath });
-        return res.status(err.statusCode).json(err.toResponse());
+        throw Errors.notFound(result.targetLabel!, { file: notePath });
       }
 
       const newContent = result.content;

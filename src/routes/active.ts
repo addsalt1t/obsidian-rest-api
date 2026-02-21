@@ -110,8 +110,7 @@ export function createActiveRouter(app: App): Router {
       });
 
       if (!result.found) {
-        const err = Errors.notFound(result.targetLabel!, { file: file.path });
-        return res.status(err.statusCode).json(err.toResponse());
+        throw Errors.notFound(result.targetLabel!, { file: file.path });
       }
 
       const newContent = result.content;
