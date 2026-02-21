@@ -1,13 +1,13 @@
-# obsidian-extended-rest-api
+# obsidian-rest-api
 
 Obsidian REST API 확장 플러그인 (Express 기반)
 
 ## 명령어
 
 ```bash
-npm test -w obsidian-extended-rest-api              # 유닛 테스트
-npm run test:coverage -w obsidian-extended-rest-api  # 커버리지 측정
-npm run build:api                                    # 빌드 (루트에서 실행)
+npm test              # 유닛 테스트
+npm run test:coverage # 커버리지 측정
+npm run build         # 빌드
 ```
 
 ## 아키텍처

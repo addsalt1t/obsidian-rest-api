@@ -53,8 +53,7 @@ type HeadingPatchHandler = (context: HeadingPatchContext) => string[];
 type LinePatchHandler = (context: LinePatchContext) => void;
 type BlockPatchHandler = (context: BlockPatchContext) => void;
 
-// NOTE: Unlike obsidian-mcp/src/utils/frontmatter.ts which includes optional
-// trailing newline `(?:\r?\n)?`, this pattern omits it intentionally:
+// Omits optional trailing newline `(?:\r?\n)?` intentionally:
 // patching operations need precise --- boundary without consuming trailing newline.
 const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---/;
 const HEADING_PATTERN = /^(#{1,6})\s+(.+)$/;
