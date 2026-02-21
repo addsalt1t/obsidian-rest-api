@@ -1,5 +1,5 @@
 /**
- * 텍스트 토큰화 (한글 + 영어 지원)
+ * Text tokenization (Korean + English support)
  */
 export function tokenize(text: string): string[] {
   const cleaned = text.toLowerCase().replace(/[^\w\s\u3131-\u3163\u3165-\u318E\uAC00-\uD7A3]/g, ' ');
@@ -7,7 +7,7 @@ export function tokenize(text: string): string[] {
 }
 
 /**
- * TF-IDF 벡터 계산
+ * Compute TF-IDF vector
  */
 export function computeTfIdf(tokens: string[], idf: Map<string, number>): number[] {
   const tf = new Map<string, number>();
@@ -28,7 +28,7 @@ export function computeTfIdf(tokens: string[], idf: Map<string, number>): number
 }
 
 /**
- * 코사인 유사도 계산
+ * Compute cosine similarity
  */
 export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length || a.length === 0) return 0;
@@ -48,7 +48,7 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 /**
- * 문서 토큰 집합으로 IDF 맵 구성
+ * Build IDF map from document token sets
  */
 export function buildIdf(allTokens: string[][]): Map<string, number> {
   const docCount = allTokens.length;

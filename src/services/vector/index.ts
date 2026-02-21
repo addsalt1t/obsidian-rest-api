@@ -1,5 +1,5 @@
 /**
- * Vector 서비스 통합 export
+ * Vector service unified exports
  */
 export { tokenize, computeTfIdf, cosineSimilarity, getEmbeddingStatus, embed, vectorSearch } from './vector-service';
 export { resolveScopedMarkdownFiles, resolveScopedMarkdownFilesWithPaths } from './scope';

@@ -1,6 +1,6 @@
 /**
- * 마크다운 파싱 서비스
- * 프론트매터 및 태그 추출 유틸리티
+ * Markdown parsing service
+ * Frontmatter and tag extraction utilities
  */
 
 interface MarkdownMetadata {
@@ -9,10 +9,10 @@ interface MarkdownMetadata {
 }
 
 /**
- * 마크다운 파일에서 프론트매터와 태그를 직접 파싱
- * 캐시가 없거나 불완전할 때 폴백으로 사용
- * @param content - 마크다운 파일 내용
- * @returns 프론트매터와 태그
+ * Directly parse frontmatter and tags from a markdown file.
+ * Used as a fallback when cache is missing or incomplete.
+ * @param content - Markdown file content
+ * @returns Frontmatter and tags
  */
 export function parseMarkdownMetadata(content: string): MarkdownMetadata {
   const result: MarkdownMetadata = {
@@ -20,7 +20,7 @@ export function parseMarkdownMetadata(content: string): MarkdownMetadata {
     tags: [],
   };
 
-  // 프론트매터 파싱
+  // Parse frontmatter
   const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
   if (frontmatterMatch) {
     const yamlContent = frontmatterMatch[1];
@@ -30,33 +30,33 @@ export function parseMarkdownMetadata(content: string): MarkdownMetadata {
     let currentArray: string[] | null = null;
 
     for (const line of lines) {
-      // 리스트 아이템 (들여쓰기 + - 값)
+      // List item (indented + - value)
       const listItemMatch = line.match(/^\s+-\s+(.*)$/);
       if (listItemMatch && currentKey && currentArray) {
         currentArray.push(listItemMatch[1].trim());
         continue;
       }
 
-      // 이전 리스트 완료
+      // Complete previous list
       if (currentKey && currentArray) {
         result.frontmatter[currentKey] = currentArray;
         currentKey = null;
         currentArray = null;
       }
 
-      // 키-값 쌍 파싱 (하이픈, 한글 키 지원)
+      // Parse key-value pair (supports hyphenated keys)
       const match = line.match(/^([\w-]+):\s*(.*)$/);
       if (match) {
         const [, key, value] = match;
 
-        // 값이 비어있으면 다음 줄에 리스트가 올 수 있음
+        // Empty value may be followed by a list on next lines
         if (value === '' || value === undefined) {
           currentKey = key;
           currentArray = [];
           continue;
         }
 
-        // 간단한 YAML 파싱 (문자열, 숫자, 불리언)
+        // Simple YAML parsing (string, number, boolean)
         if (value === 'true') {
           result.frontmatter[key] = true;
         } else if (value === 'false') {
@@ -70,11 +70,11 @@ export function parseMarkdownMetadata(content: string): MarkdownMetadata {
         } else if (value.startsWith("'") && value.endsWith("'")) {
           result.frontmatter[key] = value.slice(1, -1);
         } else if (value.startsWith('[') && value.endsWith(']')) {
-          // 인라인 배열
+          // Inline array
           try {
             result.frontmatter[key] = JSON.parse(value);
           } catch {
-            // YAML 인라인 배열 [a, b, c] 형태 파싱
+            // Parse YAML inline array [a, b, c] format
             const items = value
               .slice(1, -1)
               .split(',')
@@ -87,12 +87,12 @@ export function parseMarkdownMetadata(content: string): MarkdownMetadata {
       }
     }
 
-    // 마지막 리스트 완료
+    // Complete last list
     if (currentKey && currentArray) {
       result.frontmatter[currentKey] = currentArray;
     }
 
-    // 프론트매터의 tags 필드 추출
+    // Extract tags field from frontmatter
     if (Array.isArray(result.frontmatter.tags)) {
       result.tags.push(...result.frontmatter.tags.map((t) => `#${t}`));
     } else if (typeof result.frontmatter.tags === 'string') {
@@ -100,7 +100,7 @@ export function parseMarkdownMetadata(content: string): MarkdownMetadata {
     }
   }
 
-  // 본문의 인라인 태그 파싱 (#tag 형태)
+  // Parse inline tags (#tag format) from body
   const tagMatches = content.match(
     /(?:^|\s)#([a-zA-Z\u00C0-\u024F\u1100-\u11FF\uAC00-\uD7AF][\w\u00C0-\u024F\u1100-\u11FF\uAC00-\uD7AF/-]*)/g
   );
@@ -115,4 +115,3 @@ export function parseMarkdownMetadata(content: string): MarkdownMetadata {
 
   return result;
 }
-

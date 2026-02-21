@@ -36,10 +36,10 @@ export function listFolderChildren(folder: TFolder): { files: FileInfo[]; folder
 }
 
 /**
- * 폴더를 재귀적으로 트리 구조로 변환
- * @param folder - 변환할 폴더
- * @param currentDepth - 현재 깊이
- * @param maxDepth - 최대 깊이 제한
+ * Recursively convert a folder into a tree structure
+ * @param folder - The folder to convert
+ * @param currentDepth - Current depth level
+ * @param maxDepth - Maximum depth limit
  */
 export function buildFolderTree(folder: TFolder, currentDepth: number, maxDepth: number): FolderTree {
   const files: FileInfo[] = [];

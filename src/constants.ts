@@ -1,20 +1,20 @@
 /**
- * Extended REST API 상수 정의
- * 하드코딩된 값들을 중앙집중식으로 관리
+ * Extended REST API constants.
+ * Centralized management of hardcoded values.
  */
 
-// ============ 서버 설정 ============
+// ============ Server Configuration ============
 
-/** 기본 포트 번호 */
+/** Default port number */
 export const DEFAULT_PORT = 27125;
 
-/** 서버 바인딩 호스트 */
+/** Server binding host */
 export const SERVER_HOST = '127.0.0.1';
 
-/** localhost 호스트명 (인증서용) */
+/** Localhost hostname (for certificates) */
 export const LOCALHOST = 'localhost';
 
-/** 기본 CORS 허용 origins */
+/** Default allowed CORS origins */
 export const DEFAULT_CORS_ORIGINS: readonly string[] = [
   'http://localhost',
   'https://localhost',
@@ -24,100 +24,100 @@ export const DEFAULT_CORS_ORIGINS: readonly string[] = [
 
 // ============ Rate Limiting ============
 
-/** Rate limit 시간 윈도우 (밀리초) */
-export const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1분
+/** Rate limit time window (milliseconds) */
+export const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
 
-/** 윈도우 당 최대 요청 수 */
+/** Maximum requests per window */
 export const RATE_LIMIT_MAX_REQUESTS = 100;
 
 // ============ Request Body Limits ============
 
-/** JSON body 최대 크기 */
+/** Maximum JSON body size */
 export const JSON_BODY_LIMIT = '1mb';
 
-/** Text body 최대 크기 (마크다운 파일 전체 내용 가능) */
+/** Maximum text body size (supports full markdown file content) */
 export const TEXT_BODY_LIMIT = '10mb';
 
-// ============ 인증서 설정 ============
+// ============ Certificate Configuration ============
 
-/** RSA 키 크기 (bits) - 장기 보안을 위해 4096 사용 */
+/** RSA key size (bits) - using 4096 for long-term security */
 export const RSA_KEY_SIZE = 4096;
 
-/** 인증서 유효 기간 (년) */
+/** Certificate validity period (years) */
 export const CERT_VALIDITY_YEARS = 2;
 
-/** 인증서 조직명 */
+/** Certificate organization name */
 export const CERT_ORG_NAME = 'Obsidian Extended REST API';
 
-// ============ 캐시 설정 ============
+// ============ Cache Configuration ============
 
-/** 태그 캐시 TTL (밀리초) */
-export const TAG_CACHE_TTL_MS = 30000; // 30초
+/** Tag cache TTL (milliseconds) */
+export const TAG_CACHE_TTL_MS = 30000; // 30 seconds
 
-/** 파일 목록 캐시 TTL (밀리초) */
-export const FILE_LIST_CACHE_TTL_MS = 30000; // 30초
+/** File list cache TTL (milliseconds) */
+export const FILE_LIST_CACHE_TTL_MS = 30000; // 30 seconds
 
-/** 백링크 캐시 TTL (밀리초) */
-export const BACKLINK_CACHE_TTL_MS = 30000; // 30초
+/** Backlink cache TTL (milliseconds) */
+export const BACKLINK_CACHE_TTL_MS = 30000; // 30 seconds
 
-/** Glob 정규식 캐시 최대 크기 */
+/** Maximum glob regex cache size */
 export const GLOB_CACHE_MAX_SIZE = 100;
 
-// ============ 트리 탐색 설정 ============
+// ============ Tree Traversal Configuration ============
 
-/** 트리 최소 깊이 */
+/** Minimum tree depth */
 export const TREE_DEPTH_MIN = 1;
 
-/** 트리 최대 깊이 */
+/** Maximum tree depth */
 export const TREE_DEPTH_MAX = 100;
 
-/** 트리 기본 깊이 */
+/** Default tree depth */
 export const TREE_DEFAULT_DEPTH = 10;
 
-// ============ Dataview 설정 ============
+// ============ Dataview Configuration ============
 
-/** Dataview 쿼리 타임아웃 (밀리초) */
-export const QUERY_TIMEOUT_MS = 30000; // 30초
+/** Dataview query timeout (milliseconds) */
+export const QUERY_TIMEOUT_MS = 30000; // 30 seconds
 
-/** Dataview 쿼리 최대 결과 수 */
+/** Maximum Dataview query results */
 export const DATAVIEW_MAX_RESULTS = 1000;
 
-// ============ 페이지네이션 설정 ============
+// ============ Pagination Configuration ============
 
-/** 기본 페이지 크기 */
+/** Default page size */
 export const DEFAULT_PAGE_LIMIT = 100;
 
-/** 최대 페이지 크기 */
+/** Maximum page size */
 export const MAX_PAGE_LIMIT = 1000;
 
-// ============ 검색 설정 ============
+// ============ Search Configuration ============
 
-/** JsonLogic 쿼리 최대 재귀 깊이 */
+/** Maximum recursion depth for JsonLogic queries */
 export const MAX_JSONLOGIC_DEPTH = 10;
 
-/** 검색 동시 처리 수 */
+/** Search concurrency limit */
 export const SEARCH_CONCURRENCY = 10;
 
-/** 검색 컨텍스트 윈도우 크기 (앞뒤 문자 수) */
+/** Search context window size (characters before and after match) */
 export const SEARCH_CONTEXT_CHARS = 50;
 
-/** 파일당 최대 매치 수 */
+/** Maximum matches per file */
 export const MAX_MATCHES_PER_FILE = 10;
 
-/** 검색 점수 계산 배수 */
+/** Search score calculation multiplier */
 export const SEARCH_SCORE_MULTIPLIER = 100;
 
-// ============ Batch 설정 ============
+// ============ Batch Configuration ============
 
-/** 배치 작업 최대 파일 수 */
+/** Maximum number of files per batch operation */
 export const MAX_BATCH_SIZE = 50;
 
-/** 배치 작업 동시 처리 수 */
+/** Batch operation concurrency limit */
 export const BATCH_CONCURRENCY = 10;
 
-// ============ API 버전 ============
+// ============ API Version ============
 
-/** API 버전 (health check 응답용) */
+/** API version (for health check responses) */
 export const API_VERSION = '1.0.0';
 
 // ============ HTTP Status Codes ============
@@ -221,43 +221,43 @@ export const FILE_EXT = {
 // ============ Command Security ============
 
 /**
- * 실행이 차단되는 위험한 명령어 목록
- * 이 명령어들은 vault 삭제, 데이터 손실, 보안 위험 등 위험한 작업을 수행할 수 있음
+ * List of dangerous commands that are blocked from execution.
+ * These commands can perform destructive operations such as vault deletion, data loss, or security risks.
  */
 export const BLOCKED_COMMANDS = [
-  // ============ Vault 삭제/파괴 관련 ============
+  // ============ Vault Deletion/Destruction ============
   'app:delete-vault',
   'file-recovery:open',
 
-  // ============ 설정/시스템 관련 ============
+  // ============ Settings/System ============
   'app:open-settings',
   'app:open-installer',
   'app:open-sandbox-vault',
   'app:reload',
   'app:show-debug-info',
 
-  // ============ 플러그인 관리 (보안 위험) ============
+  // ============ Plugin Management (Security Risk) ============
   'app:open-plugins',
   'community-plugins:browse',
   'community-plugins:toggle',
 
-  // ============ 파일 대량 조작 ============
+  // ============ Bulk File Operations ============
   'file-explorer:reveal-active-file',
   'file-explorer:move-file',
   'file-explorer:duplicate-file',
 
-  // ============ 외부 연동/동기화 ============
+  // ============ External Integrations/Sync ============
   'obsidian-sync:setup',
   'obsidian-sync:view-version-history',
   'publish:open',
   'publish:view-changes',
 
-  // ============ 인증/계정 관련 ============
+  // ============ Authentication/Account ============
   'app:manage-account',
   'app:login',
   'app:logout',
 
-  // ============ UI 조작 (불필요한 API 사용 방지) ============
+  // ============ UI Operations (Prevent Unnecessary API Usage) ============
   'app:open-help',
   'app:toggle-default-new-pane-mode',
   'app:toggle-left-sidebar',
@@ -265,32 +265,32 @@ export const BLOCKED_COMMANDS = [
   'app:go-back',
   'app:go-forward',
 
-  // ============ 템플릿/자동화 (의도치 않은 실행 방지) ============
+  // ============ Templates/Automation (Prevent Unintended Execution) ============
   'templater-obsidian:insert-templater',
   'templater-obsidian:replace-in-file-templater',
   'templater-obsidian:jump-to-next-cursor-location',
 ] as const;
 
 /**
- * 패턴 기반 명령어 차단 목록
- * 새로 추가되는 위험 명령어에 대한 방어 강화
+ * Pattern-based command blocklist.
+ * Provides defense-in-depth against newly added dangerous commands.
  */
 export const BLOCKED_COMMAND_PATTERNS: RegExp[] = [
-  /^app:delete/i,           // app:delete로 시작하는 모든 명령어
-  /^file-recovery:/i,       // 모든 file-recovery: 명령어
-  /delete-vault/i,          // vault 삭제 관련
-  /^obsidian-sync:/i,       // 모든 동기화 명령어
-  /^publish:/i,             // 모든 발행 명령어
+  /^app:delete/i,           // All commands starting with app:delete
+  /^file-recovery:/i,       // All file-recovery: commands
+  /delete-vault/i,          // Vault deletion related
+  /^obsidian-sync:/i,       // All sync commands
+  /^publish:/i,             // All publish commands
 ];
 
 /**
- * 명령어가 차단 목록에 있는지 확인
+ * Check whether a command is in the blocklist.
  */
 export function isBlockedCommand(commandId: string): boolean {
-  // 정확한 ID 매칭
+  // Exact ID matching
   if (BLOCKED_COMMANDS.includes(commandId as typeof BLOCKED_COMMANDS[number])) {
     return true;
   }
-  // 패턴 매칭
+  // Pattern matching
   return BLOCKED_COMMAND_PATTERNS.some(pattern => pattern.test(commandId));
 }

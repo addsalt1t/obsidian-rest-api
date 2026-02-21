@@ -28,10 +28,10 @@ function getOrCreateEntityCache(app: App): Map<string, CachedEntitySet> {
 }
 
 /**
- * 소스 경로에서 엔티티 맵 추출 (이름/별칭 -> 엔티티 정보)
+ * Extract entity map from source paths (name/alias -> entity info)
  *
- * 각 sourcePath 하위의 마크다운 파일 중 frontmatter에 `name` 필드가 있는 파일을
- * 엔티티로 인식합니다. `type` 필드는 필수가 아닙니다.
+ * Recognizes markdown files under each sourcePath that have a `name` field
+ * in their frontmatter as entities. The `type` field is not required.
  */
 export function extractEntitiesFromPaths(
   app: App,

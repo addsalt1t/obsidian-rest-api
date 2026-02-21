@@ -1,5 +1,5 @@
 /**
- * Autolink 서비스 통합 export
+ * Autolink service unified exports
  */
 export { buildEntityPattern, extractEntitiesFromPaths, scan, linkify } from './autolink-service';
 export { prepareEntityMatching } from './matcher';

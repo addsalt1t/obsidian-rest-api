@@ -1,6 +1,6 @@
 /**
- * 파일 관련 헬퍼 함수
- * 경로 정규화, 파일 조회, 폴더 생성 등 공통 로직 통합
+ * File-related helper functions
+ * Consolidates common logic for path normalization, file lookup, folder creation, etc.
  */
 
 import { App, TFile, TFolder, normalizePath } from 'obsidian';
@@ -8,9 +8,9 @@ import { FILE_EXT } from '../constants';
 import { validatePath } from './path-validation';
 
 /**
- * 경로 정규화 + .md 확장자 추가
- * @param path - 원본 경로
- * @returns 정규화된 마크다운 파일 경로
+ * Normalize path and append .md extension
+ * @param path - The original path
+ * @returns Normalized markdown file path
  */
 export function ensureMarkdownPath(path: string): string {
   const normalized = normalizePath(path);
@@ -21,10 +21,10 @@ export function ensureMarkdownPath(path: string): string {
 }
 
 /**
- * 파일 가져오기 또는 null 반환
- * @param app - Obsidian App 인스턴스
- * @param path - 파일 경로
- * @returns TFile 또는 null
+ * Get a file or return null
+ * @param app - Obsidian App instance
+ * @param path - File path
+ * @returns TFile or null
  */
 export function getFileOrNull(app: App, path: string): TFile | null {
   const file = app.vault.getAbstractFileByPath(path);
@@ -35,21 +35,21 @@ export function getFileOrNull(app: App, path: string): TFile | null {
 }
 
 /**
- * 파일 가져오기 (확장자 자동 추가 + .md 없이도 시도)
- * @param app - Obsidian App 인스턴스
- * @param path - 파일 경로
- * @returns TFile 또는 null
+ * Get a file with automatic extension fallback (tries with .md if not found)
+ * @param app - Obsidian App instance
+ * @param path - File path
+ * @returns TFile or null
  */
 export function getFileWithFallback(app: App, path: string): { file: TFile | null; path: string } {
   const normalized = normalizePath(path);
 
-  // 1. 정확한 경로 시도
+  // 1. Try exact path
   let file = getFileOrNull(app, normalized);
   if (file) {
     return { file, path: normalized };
   }
 
-  // 2. .md 확장자 추가 시도
+  // 2. Try with .md extension appended
   if (!normalized.endsWith(FILE_EXT.MARKDOWN)) {
     const mdPath = `${normalized}${FILE_EXT.MARKDOWN}`;
     file = getFileOrNull(app, mdPath);
@@ -62,9 +62,9 @@ export function getFileWithFallback(app: App, path: string): { file: TFile | nul
 }
 
 /**
- * 부모 폴더 생성 (없으면)
- * @param app - Obsidian App 인스턴스
- * @param path - 파일 경로
+ * Create parent folder if it does not exist
+ * @param app - Obsidian App instance
+ * @param path - File path
  */
 export async function ensureParentFolder(app: App, path: string): Promise<void> {
   const folder = path.substring(0, path.lastIndexOf('/'));
@@ -74,10 +74,10 @@ export async function ensureParentFolder(app: App, path: string): Promise<void> 
 }
 
 /**
- * 폴더 가져오기 또는 null 반환
- * @param app - Obsidian App 인스턴스
- * @param path - 폴더 경로
- * @returns TFolder 또는 null
+ * Get a folder or return null
+ * @param app - Obsidian App instance
+ * @param path - Folder path
+ * @returns TFolder or null
  */
 export function getFolderOrNull(app: App, path: string): TFolder | null {
   const folder = app.vault.getAbstractFileByPath(path);
@@ -88,12 +88,12 @@ export function getFolderOrNull(app: App, path: string): TFolder | null {
 }
 
 /**
- * resolveSafeFilePath + 정규화된 경로도 함께 반환
- * 경로를 후속 로직에서 참조해야 할 때 사용
- * @param app - Obsidian App 인스턴스
- * @param requestPath - 클라이언트가 보낸 원본 경로
+ * Resolve a safe file path and also return the normalized path
+ * Use when the path needs to be referenced in subsequent logic
+ * @param app - Obsidian App instance
+ * @param requestPath - The original path sent by the client
  * @returns { file, normalizedPath }
- * @throws PathValidationError 안전하지 않은 경로인 경우
+ * @throws PathValidationError if the path is unsafe
  */
 export function resolveSafeFilePathWithNormalized(
   app: App,

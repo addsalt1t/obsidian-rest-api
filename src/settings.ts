@@ -68,7 +68,7 @@ export class ExtendedRestApiSettingTab extends PluginSettingTab {
 
     containerEl.empty();
 
-    // 서버 상태 표시
+    // Display server status
     const statusEl = containerEl.createDiv({ cls: 'setting-item' });
     const statusDesc = statusEl.createDiv({ cls: 'setting-item-info' });
     statusDesc.createDiv({ cls: 'setting-item-name', text: 'Server status' });
@@ -76,11 +76,11 @@ export class ExtendedRestApiSettingTab extends PluginSettingTab {
     statusDesc.createDiv({
       cls: 'setting-item-description',
       text: serverRunning
-        ? `✅ Running on ${this.plugin.settings.enableHttps ? 'https' : 'http'}://${SERVER_HOST}:${this.plugin.settings.port}`
-        : '❌ Not running'
+        ? `Running on ${this.plugin.settings.enableHttps ? 'https' : 'http'}://${SERVER_HOST}:${this.plugin.settings.port}`
+        : 'Not running'
     });
 
-    // 포트 설정
+    // Port setting
     new Setting(containerEl)
       .setName('Port')
       .setDesc('Port number for the REST API server (requires restart)')
@@ -95,7 +95,7 @@ export class ExtendedRestApiSettingTab extends PluginSettingTab {
           }
         }));
 
-    // API 키 설정
+    // API key setting
     const apiKeySetting = new Setting(containerEl)
       .setName('API key')
       .setDesc('Bearer token for authentication');
@@ -144,7 +144,7 @@ export class ExtendedRestApiSettingTab extends PluginSettingTab {
         });
       });
 
-    // HTTPS 설정
+    // HTTPS setting
     new Setting(containerEl)
       .setName('Enable HTTPS')
       .setDesc('Use HTTPS with self-signed certificate (requires restart)')
@@ -155,7 +155,7 @@ export class ExtendedRestApiSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }));
 
-    // CORS 설정
+    // CORS setting
     new Setting(containerEl)
       .setName('CORS origins')
       .setDesc('Allowed origins for CORS (comma-separated). Default: localhost only')
@@ -167,7 +167,7 @@ export class ExtendedRestApiSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }));
 
-    // 서버 재시작 버튼
+    // Restart server button
     new Setting(containerEl)
       .setName('Restart server')
       .setDesc('Apply changes by restarting the server')
@@ -184,7 +184,7 @@ export class ExtendedRestApiSettingTab extends PluginSettingTab {
         });
       });
 
-    // API 문서 링크
+    // API documentation link
     const protocol = this.plugin.settings.enableHttps ? 'https' : 'http';
     const docsUrl = `${protocol}://${SERVER_HOST}:${this.plugin.settings.port}/docs`;
 

@@ -7,7 +7,7 @@ import { getTagCacheService } from '../services/tagCache';
 export function createTagsRouter(app: App): Router {
   const router = Router();
 
-  // GET /tags - 태그 목록 및 사용 횟수 (캐시 적용, 필터링/정렬 지원)
+  // GET /tags - Tag list with usage counts (cached, supports filtering/sorting)
   router.get('/', asyncHandler(async (req, res) => {
       const prefix = parseStringParam(req.query.prefix);
       const q = parseStringParam(req.query.q);
@@ -16,25 +16,25 @@ export function createTagsRouter(app: App): Router {
 
       let tags = getTagCacheService(app).getTags();
 
-      // prefix 필터: # 유무 모두 처리
+      // prefix filter: handle both with and without # prefix
       if (prefix) {
         const normalizedPrefix = prefix.replace(/^#/, '').toLowerCase();
         tags = tags.filter(t => t.tag.toLowerCase().startsWith(normalizedPrefix));
       }
 
-      // q 필터: 부분 문자열 검색 (case-insensitive)
+      // q filter: substring search (case-insensitive)
       if (q) {
         const query = q.toLowerCase();
         tags = tags.filter(t => t.tag.toLowerCase().includes(query));
       }
 
-      // 정렬
+      // Sort
       if (sort === 'name') {
         tags = [...tags].sort((a, b) => a.tag.localeCompare(b.tag));
       }
-      // sort === 'count'는 캐시가 이미 count 내림차순이므로 추가 정렬 불필요
+      // sort === 'count' needs no additional sorting since cache is already sorted by count descending
 
-      // limit 적용 (최대 500)
+      // Apply limit (max 500)
       if (limit !== undefined) {
         const clampedLimit = Math.min(Math.max(1, limit), 500);
         tags = tags.slice(0, clampedLimit);
@@ -43,12 +43,12 @@ export function createTagsRouter(app: App): Router {
       res.json({ tags });
     }));
 
-  // GET /tags/:tag/files - 특정 태그를 가진 파일 목록 (페이지네이션 지원)
+  // GET /tags/:tag/files - List files with a specific tag (supports pagination)
   router.get('/:tag/files', asyncHandler(async (req, res) => {
       const { tag } = req.params;
       const normalizedTag = tag.startsWith('#') ? tag : `#${tag}`;
 
-      // 페이지네이션 파라미터
+      // Pagination parameters
       const { limit, offset } = parsePagination(req.query as Record<string, unknown>);
 
       const allFiles: Array<{ path: string; name: string }> = [];
@@ -58,18 +58,18 @@ export function createTagsRouter(app: App): Router {
         const cache = app.metadataCache.getFileCache(file);
         if (!cache) continue;
 
-        // frontmatter 태그 확인
+        // Check frontmatter tags
         const frontmatterTags = cache.frontmatter?.tags || [];
         const normalizedFmTags = Array.isArray(frontmatterTags)
           ? frontmatterTags.map((t: string) => t.startsWith('#') ? t : `#${t}`)
           : [];
 
-        // 인라인 태그 확인
+        // Check inline tags
         const inlineTags = (cache.tags || []).map(t => t.tag);
 
         const allTags = [...normalizedFmTags, ...inlineTags];
 
-        // 중첩 태그도 매칭 (예: #parent/child는 #parent 검색에도 매칭)
+        // Also match nested tags (e.g., #parent/child matches a #parent search)
         const hasTag = allTags.some(t =>
           t === normalizedTag || t.startsWith(`${normalizedTag}/`)
         );
@@ -82,7 +82,7 @@ export function createTagsRouter(app: App): Router {
         }
       }
 
-      // 페이지네이션 적용
+      // Apply pagination
       const totalCount = allFiles.length;
       const paginatedFiles = allFiles.slice(offset, offset + limit);
 

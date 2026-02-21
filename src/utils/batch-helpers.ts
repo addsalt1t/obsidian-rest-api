@@ -1,6 +1,6 @@
 /**
- * Batch 작업 결과 분류 유틸리티
- * PromiseSettledResult를 success/errors로 분류
+ * Batch operation result classification utilities
+ * Classifies PromiseSettledResult into success/errors
  */
 
 import { toErrorMessage } from './errors';
@@ -11,11 +11,11 @@ export interface PartitionedResults<T> {
 }
 
 /**
- * PromiseSettledResult 배열을 success/errors로 분류
+ * Classify a PromiseSettledResult array into success/errors
  *
- * @param results - allSettled 결과 배열
- * @param items - 원본 입력 배열 (에러 시 경로 추출용)
- * @param getErrorPath - 원본 아이템에서 에러 경로 추출 함수
+ * @param results - allSettled result array
+ * @param items - Original input array (for extracting paths on error)
+ * @param getErrorPath - Function to extract error path from original item
  *
  * @example
  * ```ts

@@ -1,8 +1,8 @@
 /**
- * TF-IDF 벡터 계산, 코사인 유사도, 임베딩 캐시 관리
+ * TF-IDF vector computation, cosine similarity, and embedding cache management.
  *
- * basePath 파라미터로 대상 폴더를 지정할 수 있으며,
- * 미지정 시 볼트 전체 마크다운 파일을 대상으로 합니다.
+ * Use the basePath parameter to specify a target folder;
+ * if omitted, all markdown files in the vault are targeted.
  */
 import type { App, TFile } from 'obsidian';
 import type {
@@ -36,10 +36,10 @@ import { tokenize, computeTfIdf, cosineSimilarity } from './tfidf';
 export { tokenize, computeTfIdf, cosineSimilarity };
 
 /**
- * 임베딩 상태 조회
+ * Get embedding status
  *
  * @param app - Obsidian App
- * @param basePath - 대상 폴더 경로 (없으면 볼트 전체)
+ * @param basePath - Target folder path (entire vault if omitted)
  */
 export async function getEmbeddingStatus(
   app: App,
@@ -66,12 +66,12 @@ export async function getEmbeddingStatus(
 }
 
 /**
- * 문서 임베딩 생성/업데이트
+ * Create/update document embeddings
  *
  * @param app - Obsidian App
- * @param options.basePath - 대상 폴더 경로 (없으면 볼트 전체)
- * @param options.paths - 특정 파일만 임베딩 (basePath 내에서 필터)
- * @param options.force - 기존 임베딩 무시하고 재생성
+ * @param options.basePath - Target folder path (entire vault if omitted)
+ * @param options.paths - Embed only specific files (filtered within basePath)
+ * @param options.force - Ignore existing embeddings and regenerate
  */
 export async function embed(
   app: App,
@@ -225,14 +225,14 @@ async function buildSearchResult(
 }
 
 /**
- * 벡터 유사도 검색
+ * Vector similarity search
  *
  * @param app - Obsidian App
- * @param options.query - 검색 쿼리
- * @param options.basePath - 검색 범위 폴더 (없으면 임베딩된 전체)
- * @param options.limit - 결과 수 제한
- * @param options.threshold - 최소 유사도 임계값
- * @param options.frontmatterFilter - frontmatter 키-값 필터
+ * @param options.query - Search query
+ * @param options.basePath - Search scope folder (all embeddings if omitted)
+ * @param options.limit - Result count limit
+ * @param options.threshold - Minimum similarity threshold
+ * @param options.frontmatterFilter - Frontmatter key-value filter
  */
 export async function vectorSearch(
   app: App,

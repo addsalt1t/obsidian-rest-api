@@ -13,7 +13,7 @@ export function createActiveRouter(app: App): Router {
   const router = Router();
 
   /**
-   * 현재 활성화된 마크다운 파일 가져오기
+   * Get the currently active markdown file
    */
   function getActiveFile(): TFile | null {
     const view = app.workspace.getActiveViewOfType(MarkdownView);
@@ -22,7 +22,7 @@ export function createActiveRouter(app: App): Router {
 
   /**
    * GET /active/
-   * 현재 활성화된 파일 내용 조회
+   * Retrieve the content of the currently active file
    */
   router.get('/', asyncHandler(async (req: Request, res: Response) => {
       const file = getActiveFile();
@@ -39,7 +39,7 @@ export function createActiveRouter(app: App): Router {
         return res.json(buildNoteJsonResponse(app, file, content));
       }
 
-      // text/markdown (기본)
+      // text/markdown (default)
       res.setHeader('Content-Type', `${MIME_TYPE.TEXT_MARKDOWN}; charset=utf-8`);
       res.send(content);
       return;
@@ -47,7 +47,7 @@ export function createActiveRouter(app: App): Router {
 
   /**
    * PUT /active/
-   * 활성 파일 내용 덮어쓰기
+   * Overwrite active file content
    */
   router.put('/', asyncHandler(async (req: Request, res: Response) => {
       const file = getActiveFile();
@@ -66,7 +66,7 @@ export function createActiveRouter(app: App): Router {
 
   /**
    * POST /active/
-   * 활성 파일 끝에 내용 추가
+   * Append content to the end of the active file
    */
   router.post('/', asyncHandler(async (req: Request, res: Response) => {
       const file = getActiveFile();
@@ -88,7 +88,7 @@ export function createActiveRouter(app: App): Router {
 
   /**
    * PATCH /active/
-   * 활성 파일 부분 수정
+   * Partially modify the active file
    */
   router.patch('/', asyncHandler(async (req: Request, res: Response) => {
       const file = getActiveFile();
@@ -125,7 +125,7 @@ export function createActiveRouter(app: App): Router {
 
   /**
    * DELETE /active/
-   * 활성 파일 삭제
+   * Delete the active file
    */
   router.delete('/', asyncHandler(async (_req: Request, res: Response) => {
       const file = getActiveFile();

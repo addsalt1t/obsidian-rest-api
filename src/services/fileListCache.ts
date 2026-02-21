@@ -1,28 +1,28 @@
 /**
- * Vault 파일 목록 캐시 서비스
- * 반복 검색 시 getMarkdownFiles() 호출 최적화
+ * Vault file list cache service
+ * Optimizes getMarkdownFiles() calls during repeated searches
  *
- * - 파일 추가/삭제/이름변경 시 자동 무효화
- * - TTL 기반 자동 갱신
- * - 싱글톤 패턴
+ * - Auto-invalidation on file creation/deletion/rename
+ * - TTL-based auto-refresh
+ * - Singleton pattern
  */
 
 import { App, TFile, Events } from 'obsidian';
 import { FILE_LIST_CACHE_TTL_MS } from '../constants';
 
-/** 캐시 설정 */
+/** Cache configuration */
 interface CacheConfig {
-  /** 캐시 TTL (밀리초) */
+  /** Cache TTL (milliseconds) */
   ttl: number;
 }
 
-/** 기본 캐시 설정 */
+/** Default cache configuration */
 const DEFAULT_CONFIG: CacheConfig = {
   ttl: FILE_LIST_CACHE_TTL_MS,
 };
 
 /**
- * 파일 목록 캐시
+ * File list cache
  */
 export class FileListCache {
   private app: App;
@@ -38,28 +38,28 @@ export class FileListCache {
   }
 
   /**
-   * Vault 이벤트 리스너 설정
-   * 파일 변경 시 캐시 무효화
+   * Set up vault event listeners
+   * Invalidate cache on file changes
    */
   private setupEventListeners(): void {
-    // 파일 생성 시 무효화
+    // Invalidate on file creation
     this.eventRefs.push(
       this.app.vault.on('create', () => this.invalidate())
     );
 
-    // 파일 삭제 시 무효화
+    // Invalidate on file deletion
     this.eventRefs.push(
       this.app.vault.on('delete', () => this.invalidate())
     );
 
-    // 파일 이름 변경 시 무효화
+    // Invalidate on file rename
     this.eventRefs.push(
       this.app.vault.on('rename', () => this.invalidate())
     );
   }
 
   /**
-   * 캐시 무효화
+   * Invalidate cache
    */
   invalidate(): void {
     this.cachedFiles = null;
@@ -67,7 +67,7 @@ export class FileListCache {
   }
 
   /**
-   * 캐시가 유효한지 확인
+   * Check if cache is valid
    */
   private isValid(): boolean {
     if (!this.cachedFiles) return false;
@@ -75,21 +75,21 @@ export class FileListCache {
   }
 
   /**
-   * 마크다운 파일 목록 조회 (캐시 사용)
+   * Get markdown file list (uses cache)
    */
   getMarkdownFiles(): TFile[] {
     if (this.isValid() && this.cachedFiles) {
       return this.cachedFiles;
     }
 
-    // 캐시 갱신
+    // Refresh cache
     this.cachedFiles = this.app.vault.getMarkdownFiles();
     this.cacheTimestamp = Date.now();
     return this.cachedFiles;
   }
 
   /**
-   * 캐시 통계
+   * Cache statistics
    */
   getStats(): { cached: boolean; fileCount: number; age: number } {
     return {
@@ -100,7 +100,7 @@ export class FileListCache {
   }
 
   /**
-   * 리소스 정리
+   * Clean up resources
    */
   dispose(): void {
     for (const ref of this.eventRefs) {
@@ -111,11 +111,11 @@ export class FileListCache {
   }
 }
 
-// 전역 인스턴스
+// Global instance
 let globalCache: FileListCache | null = null;
 
 /**
- * 전역 파일 목록 캐시 획득
+ * Get the global file list cache
  */
 export function getFileListCache(app: App): FileListCache {
   if (!globalCache) {
@@ -125,7 +125,7 @@ export function getFileListCache(app: App): FileListCache {
 }
 
 /**
- * 전역 캐시 정리 (플러그인 언로드 시)
+ * Dispose the global cache (on plugin unload)
  */
 export function disposeFileListCache(): void {
   if (globalCache) {

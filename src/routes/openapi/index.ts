@@ -8,9 +8,9 @@ import { graphPaths } from './paths-graph';
 import { otherPaths } from './paths-other';
 
 /**
- * OpenAPI 3.0 스펙 생성
- * REST API 플러그인은 Obsidian 환경에서 실행되므로
- * 외부 라이브러리 의존성을 최소화하기 위해 수동으로 스펙 정의
+ * OpenAPI 3.0 spec generation
+ * Since the REST API plugin runs within the Obsidian environment,
+ * the spec is defined manually to minimize external library dependencies
  */
 const openApiSpec = {
   ...openApiBase,
@@ -48,7 +48,7 @@ const swaggerUiHtml = `<!DOCTYPE html>
 export function createOpenApiRouter(): Router {
   const router = Router();
 
-  // GET /openapi.json - OpenAPI 스펙
+  // GET /openapi.json - OpenAPI spec
   router.get('/openapi.json', (_req: Request, res: Response) => {
     res.json(openApiSpec);
   });

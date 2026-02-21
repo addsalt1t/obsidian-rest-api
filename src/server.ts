@@ -54,35 +54,35 @@ const serverLogger = createLogger('Server');
 const corsLogger = createLogger('CORS');
 
 /**
- * CORS origin 설정 파싱 및 검증
- * - 와일드카드 '*' 사용 시 경고 로깅
- * - 유효하지 않은 origin 필터링
+ * Parse and validate CORS origin configuration.
+ * - Logs a warning when wildcard '*' is used
+ * - Filters out invalid origins
  */
 function parseCorsOrigins(corsOrigins: string): CorsOptions['origin'] {
   const trimmed = corsOrigins.trim();
 
-  // 빈 문자열이면 기본 localhost origins 사용
+  // Use default localhost origins if empty
   if (!trimmed) {
-    corsLogger.info('CORS origin 미설정 - 기본 localhost origins 사용');
+    corsLogger.info('No CORS origin configured - using default localhost origins');
     return [...DEFAULT_CORS_ORIGINS];
   }
 
-  // 와일드카드 처리 - 보안 경고와 함께 기본값으로 대체
+  // Handle wildcard - replace with defaults along with a security warning
   if (trimmed === '*') {
-    corsLogger.warn('⚠️ 와일드카드(*) origin은 보안상 권장되지 않습니다 - 기본 localhost origins로 대체됨');
-    corsLogger.warn('⚠️ 외부 접근이 필요하면 명시적 origin 목록을 설정하세요 (예: http://localhost:3000,https://myapp.com)');
+    corsLogger.warn('Wildcard (*) origin is not recommended for security - falling back to default localhost origins');
+    corsLogger.warn('If external access is needed, specify an explicit origin list (e.g., http://localhost:3000,https://myapp.com)');
     return [...DEFAULT_CORS_ORIGINS];
   }
 
-  // origin 목록 파싱 및 검증
+  // Parse and validate origin list
   const origins = trimmed.split(',')
     .map(s => s.trim())
     .filter(origin => {
       if (!origin) return false;
 
-      // URL 형식 검증 (http:// 또는 https://로 시작해야 함)
+      // Validate URL format (must start with http:// or https://)
       if (!/^https?:\/\//i.test(origin)) {
-        corsLogger.warn(`⚠️ 유효하지 않은 origin 무시됨: "${origin}" (http:// 또는 https://로 시작해야 함)`);
+        corsLogger.warn(`Invalid origin ignored: "${origin}" (must start with http:// or https://)`);
         return false;
       }
 
@@ -90,20 +90,20 @@ function parseCorsOrigins(corsOrigins: string): CorsOptions['origin'] {
         new URL(origin);
         return true;
       } catch {
-        corsLogger.warn(`⚠️ 유효하지 않은 origin 무시됨: "${origin}"`);
+        corsLogger.warn(`Invalid origin ignored: "${origin}"`);
         return false;
       }
     });
 
   if (origins.length === 0) {
-    corsLogger.warn('⚠️ 유효한 origin이 없음 - 기본값 사용');
+    corsLogger.warn('No valid origins found - using defaults');
     return [...DEFAULT_CORS_ORIGINS];
   }
 
   return origins;
 }
 
-// 자체 서명 인증서 동적 생성
+// Generate a self-signed certificate dynamically
 function generateSelfSignedCert(): { key: string; cert: string } {
   const keys = forge.pki.rsa.generateKeyPair(RSA_KEY_SIZE);
   const cert = forge.pki.createCertificate();
@@ -121,7 +121,7 @@ function generateSelfSignedCert(): { key: string; cert: string } {
   cert.setSubject(attrs);
   cert.setIssuer(attrs);
 
-  // localhost 및 127.0.0.1에 대한 SAN (Subject Alternative Name) 추가
+  // Add SAN (Subject Alternative Name) for localhost and 127.0.0.1
   cert.setExtensions([
     {
       name: 'basicConstraints',
@@ -155,7 +155,7 @@ export function createServer(
     const app = express();
     const settings = getSettings();
 
-    // CORS 설정
+    // CORS configuration
     const corsOrigins = parseCorsOrigins(settings.corsOrigins);
     const corsOptions: cors.CorsOptions = {
       origin: corsOrigins,
@@ -168,27 +168,27 @@ export function createServer(
         HTTP_HEADER.TARGET_TYPE,
         HTTP_HEADER.TARGET,
       ],
-      // credentials 항상 활성화 (와일드카드 사용 불가로 안전)
+      // Always enable credentials (safe since wildcard is not used)
       credentials: true,
     };
     app.use(cors(corsOptions));
 
-    // 보안 헤더 설정 (localhost API 서버에 적합한 최소 설정)
+    // Security headers (minimal configuration suitable for a localhost API server)
     app.use(helmet({
-      // CSP는 API 서버라 비활성화 (HTML 응답 없음)
+      // Disable CSP since this is an API server (no HTML responses)
       contentSecurityPolicy: false,
-      // HSTS는 localhost라 비활성화
+      // Disable HSTS since this runs on localhost
       strictTransportSecurity: false,
-      // 기본 보안 헤더 활성화
-      xContentTypeOptions: true,        // MIME 스니핑 방지
-      xFrameOptions: { action: 'deny' }, // 클릭재킹 방지
-      xPoweredBy: false,                // Express 버전 정보 숨김
+      // Enable default security headers
+      xContentTypeOptions: true,        // Prevent MIME sniffing
+      xFrameOptions: { action: 'deny' }, // Prevent clickjacking
+      xPoweredBy: false,                // Hide Express version info
     }));
 
-    // Body 파싱 (크기 제한 적용 - DoS 방지)
-    // JSON: 기본 application/json + Obsidian REST API의 커스텀 JSON 타입
+    // Body parsing (with size limits to prevent DoS)
+    // JSON: standard application/json + Obsidian REST API custom JSON types
     app.use(express.json({ type: [MIME_TYPE.JSON, MIME_TYPE.JSONLOGIC], limit: JSON_BODY_LIMIT }));
-    // Text: markdown, plain text + Dataview DQL (마크다운 파일 전체 업로드 지원)
+    // Text: markdown, plain text + Dataview DQL (supports full markdown file uploads)
     app.use(express.text({ type: [MIME_TYPE.TEXT_MARKDOWN, MIME_TYPE.TEXT_PLAIN, MIME_TYPE.DATAVIEW_DQL], limit: TEXT_BODY_LIMIT }));
 
     // Rate limiting
@@ -201,21 +201,21 @@ export function createServer(
     });
     app.use(limiter);
 
-    // 헬스 체크 (인증 불필요)
+    // Health check (no authentication required)
     app.get('/health', (_req, res) => {
       res.json({ status: 'ok', version: API_VERSION });
     });
 
-    // OpenAPI 문서 (인증 불필요)
+    // OpenAPI docs (no authentication required)
     app.use('/', createOpenApiRouter());
 
-    // 인증 미들웨어 (위의 라우트 이후에 적용)
+    // Authentication middleware (applied after the routes above)
     app.use(createAuthMiddleware(() => getSettings().apiKey));
 
-    // 라우트 등록
+    // Register routes
     app.use('/tags', createTagsRouter(obsidianApp));
     app.use('/dataview', createDataviewRouter(obsidianApp));
-    // 폴더/이동 라우터는 vault 라우터보다 먼저 등록 (더 구체적인 경로 우선)
+    // Register folder/move routers before vault router (more specific paths first)
     app.use('/vault/folder', createFolderRouter(obsidianApp));
     app.use('/vault', createMoveRenameRouter(obsidianApp));
     app.use('/vault', createVaultRouter(obsidianApp));
@@ -230,12 +230,12 @@ export function createServer(
     app.use('/autolink', createAutolinkRouter(obsidianApp));
     app.use('/vector', createVectorRouter(obsidianApp));
 
-    // 404 핸들러
+    // 404 handler
     app.use((_req, res) => {
       res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_CODE.NOT_FOUND, message: ERROR_MSG.ENDPOINT_NOT_FOUND });
     });
 
-    // 에러 핸들러
+    // Error handler
     app.use(errorHandler);
 
     return app;

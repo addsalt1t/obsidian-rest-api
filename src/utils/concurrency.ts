@@ -1,14 +1,14 @@
 /**
- * 동시성 제어 유틸리티
- * p-limit 스타일의 진정한 병렬 처리 (동시 실행 수 제한)
+ * Concurrency control utilities
+ * True parallel processing with concurrency limiting (p-limit style)
  */
 
 import { BATCH_CONCURRENCY } from '../constants';
 
 /**
- * 동시 실행 수를 제한하는 래퍼 생성 (p-limit 스타일)
- * @param concurrency - 최대 동시 실행 수
- * @returns limit 함수
+ * Create a concurrency-limiting wrapper (p-limit style)
+ * @param concurrency - Maximum number of concurrent executions
+ * @returns limit function
  */
 export function pLimit(concurrency: number) {
   if (concurrency < 1) {
@@ -53,14 +53,14 @@ export function pLimit(concurrency: number) {
 }
 
 /**
- * 배열의 각 요소에 대해 동시성 제한을 두고 비동기 함수 실행
- * - 진정한 병렬 처리: 슬롯이 비는 즉시 다음 작업 시작
- * - 배치 순차 처리와 달리 전체 throughput 향상
+ * Execute an async function for each array element with concurrency limiting
+ * - True parallel processing: starts the next task as soon as a slot becomes available
+ * - Improves overall throughput compared to sequential batch processing
  *
- * @param items - 처리할 아이템 배열
- * @param fn - 각 아이템을 처리할 비동기 함수
- * @param concurrency - 동시 실행 수 (기본값: BATCH_CONCURRENCY)
- * @returns 결과 배열 (입력 순서 유지)
+ * @param items - Array of items to process
+ * @param fn - Async function to process each item
+ * @param concurrency - Maximum concurrent executions (default: BATCH_CONCURRENCY)
+ * @returns Result array (preserves input order)
  *
  * @example
  * const results = await mapWithConcurrency(
@@ -79,13 +79,13 @@ export async function mapWithConcurrency<T, R>(
 }
 
 /**
- * 배열의 각 요소에 대해 동시성 제한을 두고 비동기 함수 실행 (allSettled 버전)
- * - 일부 실패해도 나머지 결과 수집
+ * Execute an async function for each array element with concurrency limiting (allSettled version)
+ * - Collects remaining results even if some fail
  *
- * @param items - 처리할 아이템 배열
- * @param fn - 각 아이템을 처리할 비동기 함수
- * @param concurrency - 동시 실행 수 (기본값: BATCH_CONCURRENCY)
- * @returns PromiseSettledResult 배열 (입력 순서 유지)
+ * @param items - Array of items to process
+ * @param fn - Async function to process each item
+ * @param concurrency - Maximum concurrent executions (default: BATCH_CONCURRENCY)
+ * @returns PromiseSettledResult array (preserves input order)
  */
 export async function mapWithConcurrencySettled<T, R>(
   items: T[],

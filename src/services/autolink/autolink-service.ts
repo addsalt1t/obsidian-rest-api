@@ -1,8 +1,9 @@
 /**
- * 미링크 엔티티 감지 (scan) 및 자동 wikilink 변환 (linkify)
+ * Unlinked entity detection (scan) and automatic wikilink conversion (linkify)
  *
- * entitySourcePaths에 지정된 폴더에서 frontmatter `name` 필드가 있는 마크다운 파일을
- * 엔티티로 인식하고, targetPaths 범위의 파일에서 미링크 멘션을 감지/변환합니다.
+ * Recognizes markdown files with a frontmatter `name` field under the folders
+ * specified in entitySourcePaths as entities, and detects/converts unlinked
+ * mentions within files in the targetPaths scope.
  */
 import { App, TFile } from 'obsidian';
 import type {
@@ -20,12 +21,12 @@ import { extractEntitiesFromPaths } from './entity-extractor';
 import { buildEntityPattern, prepareEntityMatching } from './matcher';
 import { runLinkifyEngine, runScanEngine } from './scan-engine';
 
-/** Autolink 파일 병렬 처리 동시성 제한 */
+/** Autolink file parallel processing concurrency limit */
 const AUTOLINK_CONCURRENCY = 10;
 
 export { buildEntityPattern, extractEntitiesFromPaths };
 
-/** 경로 배열 유효성 검사 */
+/** Validate path array */
 function validatePaths(entitySourcePaths: string[], targetPaths?: string[]): void {
   for (const path of entitySourcePaths) {
     validatePath(path);
@@ -40,7 +41,7 @@ function validatePaths(entitySourcePaths: string[], targetPaths?: string[]): voi
   }
 }
 
-/** targetPaths 필터링된 대상 파일 목록 반환 */
+/** Return target file list filtered by targetPaths */
 function resolveTargetFiles(app: App, targetPaths?: string[]): TFile[] {
   const fileCache = getFileListCache(app);
   const files = fileCache.getMarkdownFiles();
@@ -48,11 +49,11 @@ function resolveTargetFiles(app: App, targetPaths?: string[]): TFile[] {
 }
 
 /**
- * 미링크 엔티티 감지
+ * Detect unlinked entity mentions
  *
- * entitySourcePaths에서 엔티티를 추출하고, targetPaths 범위의 파일에서
- * 링크되지 않은 엔티티 멘션을 찾습니다.
- * targetPaths가 없으면 볼트 전체 마크다운 파일을 스캔합니다.
+ * Extracts entities from entitySourcePaths and finds unlinked entity mentions
+ * in files within the targetPaths scope.
+ * If targetPaths is omitted, scans all markdown files in the vault.
  */
 export async function scan(
   app: App,
@@ -102,11 +103,11 @@ export async function scan(
 }
 
 /**
- * 링크 변환 실행
+ * Execute link conversion
  *
- * entitySourcePaths에서 엔티티를 추출하고, targetPaths 범위의 파일에서
- * 미링크 멘션을 [[wikilink]]로 변환합니다.
- * targetPaths가 없으면 볼트 전체 마크다운 파일을 대상으로 합니다.
+ * Extracts entities from entitySourcePaths and converts unlinked mentions
+ * to [[wikilinks]] in files within the targetPaths scope.
+ * If targetPaths is omitted, targets all markdown files in the vault.
  */
 export async function linkify(
   app: App,

@@ -17,7 +17,7 @@ interface CachedMatcher {
 const matcherCacheByApp = new WeakMap<App, Map<string, CachedMatcher>>();
 
 /**
- * 엔티티 이름으로 정규식 패턴 생성 (한국어 조사 지원)
+ * Build regex pattern from entity name (with Korean particle support)
  */
 export function buildEntityPattern(name: string, aliases: string[] = []): RegExp {
   const safeAliases = aliases.slice(0, MAX_ALIASES);
@@ -59,7 +59,7 @@ function getOrCreateMatcherCache(app: App): Map<string, CachedMatcher> {
 }
 
 /**
- * 엔티티 추출 -> 정렬 -> 패턴 사전 컴파일까지 일괄 수행
+ * Perform entity extraction, sorting, and pattern pre-compilation in one step
  */
 export function prepareEntityMatching(
   app: App,

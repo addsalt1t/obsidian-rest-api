@@ -8,13 +8,13 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { extractRequestPath } from './vault/utils';
 
 /**
- * 통합 메타데이터 라우터
- * GET /metadata/{path} - 파일의 모든 메타데이터를 한 번에 반환
+ * Unified metadata router
+ * GET /metadata/{path} - Return all metadata for a file in a single response
  */
 export function createMetadataRouter(app: App): Router {
   const router = Router();
 
-  // GET /metadata/{path} - 통합 메타데이터 조회
+  // GET /metadata/{path} - Unified metadata retrieval
   router.get('/*', asyncHandler(async (req: Request, res: Response) => {
       const requestPath = extractRequestPath(req);
       if (!requestPath) {
@@ -26,14 +26,14 @@ export function createMetadataRouter(app: App): Router {
         return res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_MSG.FILE_NOT_FOUND });
       }
 
-      // 캐시 불완전 시에만 vault.read 호출 (불필요한 I/O 방지)
+      // Only call vault.read when cache is incomplete (avoid unnecessary I/O)
       const content = needsFallbackRead(app, file)
         ? await app.vault.read(file)
         : '';
 
       const base = buildMetadataResponse(app, file, normalizedPath, content);
 
-      // 백링크 (역방향 인덱스를 사용한 O(1) 조회)
+      // Backlinks (O(1) lookup using reverse index)
       const backlinkIndex = getBacklinkCacheService(app).getIndex();
       const backlinks = backlinkIndex.get(normalizedPath) || [];
 

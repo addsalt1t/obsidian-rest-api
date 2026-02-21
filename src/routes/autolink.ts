@@ -1,7 +1,7 @@
 /**
  * Autolink route handler
  *
- * 미링크 엔티티 감지 (scan) 및 자동 wikilink 변환 (linkify) 엔드포인트
+ * Endpoints for detecting unlinked entities (scan) and auto-converting to wikilinks (linkify)
  */
 import { Router, Request, Response } from 'express';
 import { App } from 'obsidian';

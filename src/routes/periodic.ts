@@ -31,7 +31,7 @@ export function createPeriodicRouter(app: App): Router {
   }) => { format: (format: string) => string };
 
   /**
-   * Periodic Notes 플러그인 설정 가져오기
+   * Get Periodic Notes plugin settings
    */
   function getPeriodicNotesPlugin(): PeriodicNotesPlugin | null {
     // @ts-expect-error - Periodic Notes plugin API
@@ -40,12 +40,12 @@ export function createPeriodicRouter(app: App): Router {
   }
 
   /**
-   * 날짜 기반 노트 경로 생성
+   * Generate note path based on date
    */
   function getNotePath(period: PeriodicNotePeriod, year?: number, month?: number, day?: number): string | null {
     const plugin = getPeriodicNotesPlugin();
 
-    // 기본 설정 (Periodic Notes 플러그인이 없는 경우)
+    // Default settings (when Periodic Notes plugin is not installed)
     const defaultSettings: Record<PeriodicNotePeriod, { folder: string; format: string }> = {
       daily: { folder: '', format: 'YYYY-MM-DD' },
       weekly: { folder: '', format: 'YYYY-[W]ww' },
@@ -58,7 +58,7 @@ export function createPeriodicRouter(app: App): Router {
     const folder = settings.folder || '';
     const format = settings.format || defaultSettings[period].format;
 
-    // 날짜 계산
+    // Calculate date
     let date = momentFactory();
     if (year !== undefined) {
       date = momentFactory({ year, month: (month ?? 1) - 1, day: day ?? 1 });
@@ -117,7 +117,7 @@ export function createPeriodicRouter(app: App): Router {
 
   /**
    * PUT /periodic/:period/...
-   * 주기 노트 생성 또는 덮어쓰기
+   * Create or overwrite a periodic note
    */
   router.put(['/:period/', '/:period/:year/', '/:period/:year/:month/', '/:period/:year/:month/:day/'], asyncHandler(async (req: Request, res: Response) => {
       const notePath = resolvePeriodicNotePathFromRequest(req);
@@ -130,7 +130,7 @@ export function createPeriodicRouter(app: App): Router {
         await waitForMetadataReady(app, notePath, { forceWait: true });
         res.json({ message: 'Periodic note updated', path: notePath });
       } else {
-        // 폴더 생성 (없으면)
+        // Create folder if it doesn't exist
         await ensureParentFolder(app, notePath);
         await app.vault.create(notePath, content);
         await waitForMetadataReady(app, notePath);
@@ -141,7 +141,7 @@ export function createPeriodicRouter(app: App): Router {
 
   /**
    * POST /periodic/:period/...
-   * 주기 노트 끝에 내용 추가
+   * Append content to the end of a periodic note
    */
   router.post(['/:period/', '/:period/:year/', '/:period/:year/:month/', '/:period/:year/:month/:day/'], asyncHandler(async (req: Request, res: Response) => {
       const notePath = resolvePeriodicNotePathFromRequest(req);
@@ -163,7 +163,7 @@ export function createPeriodicRouter(app: App): Router {
 
   /**
    * PATCH /periodic/:period/...
-   * 주기 노트 부분 수정
+   * Partially modify a periodic note
    */
   router.patch(['/:period/', '/:period/:year/', '/:period/:year/:month/', '/:period/:year/:month/:day/'], asyncHandler(async (req: Request, res: Response) => {
       const notePath = resolvePeriodicNotePathFromRequest(req);

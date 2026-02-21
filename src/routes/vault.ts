@@ -48,21 +48,21 @@ export function createVaultRouter(app: App): Router {
 }
 
 /**
- * 폴더 관리 라우터
- * POST /vault/folder/{path} - 폴더 생성
- * DELETE /vault/folder/{path} - 폴더 삭제
+ * Folder management router
+ * POST /vault/folder/{path} - Create folder
+ * DELETE /vault/folder/{path} - Delete folder
  */
 export function createFolderRouter(app: App): Router {
   const router = Router();
 
-  // POST /vault/folder/{path} - 폴더 생성
+  // POST /vault/folder/{path} - Create folder
   router.post('/*', asyncHandler(async (req: Request, res: Response) => {
       const normalizedPath = getValidatedNormalizedPath(req, res);
       if (!normalizedPath) {
         return;
       }
 
-      // 이미 존재하는지 확인
+      // Check if already exists
       if (app.vault.getAbstractFileByPath(normalizedPath)) {
         return res.status(HTTP_STATUS.CONFLICT).json({ error: ERROR_MSG.TARGET_EXISTS });
       }
@@ -72,7 +72,7 @@ export function createFolderRouter(app: App): Router {
       return;
   }));
 
-  // DELETE /vault/folder/{path} - 폴더 삭제
+  // DELETE /vault/folder/{path} - Delete folder
   router.delete('/*', asyncHandler(async (req: Request, res: Response) => {
       const normalizedPath = getValidatedNormalizedPath(req, res);
       if (!normalizedPath) {
@@ -86,7 +86,7 @@ export function createFolderRouter(app: App): Router {
         return res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_MSG.FOLDER_NOT_FOUND });
       }
 
-      // 비어있지 않은 폴더 삭제 시 force 필요
+      // Deleting non-empty folders requires force flag
       if (!force && folder.children.length > 0) {
         return res.status(HTTP_STATUS.CONFLICT).json({ error: ERROR_MSG.FOLDER_NOT_EMPTY });
       }
@@ -100,14 +100,14 @@ export function createFolderRouter(app: App): Router {
 }
 
 /**
- * 파일/폴더 이동 및 이름 변경 라우터
- * POST /vault/{path}/move - 이동 (링크 자동 업데이트)
- * POST /vault/{path}/rename - 이름 변경 (링크 자동 업데이트)
+ * File/folder move and rename router
+ * POST /vault/{path}/move - Move (auto-updates links)
+ * POST /vault/{path}/rename - Rename (auto-updates links)
  */
 export function createMoveRenameRouter(app: App): Router {
   const router = Router();
 
-  // POST /vault/{path}/move - 파일/폴더 이동
+  // POST /vault/{path}/move - Move file/folder
   router.post(/^\/(.+)\/move\/?$/, asyncHandler(async (req: Request, res: Response) => {
       const oldPath = getValidatedNormalizedPath(req, res);
       if (!oldPath) {
@@ -119,7 +119,7 @@ export function createMoveRenameRouter(app: App): Router {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({ error: ERROR_MSG.NEW_PATH_REQUIRED });
       }
 
-      // Path traversal 검증 (대상 경로)
+      // Path traversal validation (target path)
       validatePath(newPath);
 
       const normalizedNewPath = normalizePath(newPath);
@@ -129,21 +129,21 @@ export function createMoveRenameRouter(app: App): Router {
         return res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_MSG.FILE_NOT_FOUND });
       }
 
-      // 대상 경로에 이미 파일이 있는지 확인
+      // Check if a file already exists at the target path
       const targetExists = app.vault.getAbstractFileByPath(normalizedNewPath);
       if (targetExists) {
         return res.status(HTTP_STATUS.CONFLICT).json({ error: ERROR_MSG.TARGET_EXISTS });
       }
 
-      // fileManager.renameFile은 링크를 자동으로 업데이트함
+      // fileManager.renameFile automatically updates links
       await app.fileManager.renameFile(file, normalizedNewPath);
-      // metadataCache 재인덱싱 대기 (캐시 무효화는 vault 이벤트가 자동 트리거)
+      // Wait for metadataCache re-indexing (cache invalidation is auto-triggered by vault events)
       await waitForMetadataReady(app, normalizedNewPath, { forceWait: true });
       res.json({ message: 'Moved', oldPath, newPath: normalizedNewPath });
       return;
   }));
 
-  // POST /vault/{path}/rename - 파일/폴더 이름 변경
+  // POST /vault/{path}/rename - Rename file/folder
   router.post(/^\/(.+)\/rename\/?$/, asyncHandler(async (req: Request, res: Response) => {
       const oldPath = getValidatedNormalizedPath(req, res);
       if (!oldPath) {
@@ -155,7 +155,7 @@ export function createMoveRenameRouter(app: App): Router {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({ error: 'newName is required in request body' });
       }
 
-      // Path traversal 검증 (새 이름)
+      // Path traversal validation (new name)
       validatePath(newName);
 
       const file = app.vault.getAbstractFileByPath(oldPath);
@@ -163,20 +163,20 @@ export function createMoveRenameRouter(app: App): Router {
         return res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_MSG.FILE_NOT_FOUND });
       }
 
-      // 부모 경로 + 새 이름으로 새 경로 생성
+      // Build new path from parent path + new name
       const parentPath = file.parent ? file.parent.path : '';
       const newPath = parentPath ? `${parentPath}/${newName}` : newName;
       const normalizedNewPath = normalizePath(newPath);
 
-      // 대상 경로에 이미 파일이 있는지 확인
+      // Check if a file already exists at the target path
       const targetExists = app.vault.getAbstractFileByPath(normalizedNewPath);
       if (targetExists) {
         return res.status(HTTP_STATUS.CONFLICT).json({ error: ERROR_MSG.TARGET_EXISTS });
       }
 
-      // fileManager.renameFile은 링크를 자동으로 업데이트함
+      // fileManager.renameFile automatically updates links
       await app.fileManager.renameFile(file, normalizedNewPath);
-      // metadataCache 재인덱싱 대기 (캐시 무효화는 vault 이벤트가 자동 트리거)
+      // Wait for metadataCache re-indexing (cache invalidation is auto-triggered by vault events)
       await waitForMetadataReady(app, normalizedNewPath, { forceWait: true });
       res.json({ message: 'Renamed', oldPath, newPath: normalizedNewPath });
       return;

@@ -1,19 +1,19 @@
 /**
- * Express 요청 파라미터를 타입 안전하게 파싱하는 유틸리티
+ * Utilities for type-safe parsing of Express request parameters
  *
- * 사용 시점: Express req.query, req.params, req.headers에서 값을 추출할 때
- * 안티패턴: `req.query.foo as string` -- 런타임에 undefined/number일 수 있음
+ * When to use: When extracting values from Express req.query, req.params, req.headers
+ * Anti-pattern: `req.query.foo as string` -- may be undefined/number at runtime
  */
 
 import { DEFAULT_PAGE_LIMIT, MAX_PAGE_LIMIT } from '../constants';
 
-/** 문자열 파라미터 파싱 (undefined 반환 가능) */
+/** Parse a string parameter (may return undefined) */
 export function parseStringParam(value: unknown): string | undefined {
   if (typeof value === 'string' && value.length > 0) return value;
   return undefined;
 }
 
-/** 정수 파라미터 파싱 */
+/** Parse an integer parameter */
 export function parseIntParam(value: unknown, defaultValue?: number): number | undefined {
   if (value === undefined || value === null) return defaultValue;
   const num = typeof value === 'string' ? parseInt(value, 10) : Number(value);
@@ -21,7 +21,7 @@ export function parseIntParam(value: unknown, defaultValue?: number): number | u
   return num;
 }
 
-/** enum 파라미터 파싱 */
+/** Parse an enum parameter */
 export function parseEnumParam<T extends string>(
   value: unknown,
   validValues: readonly T[],
@@ -37,12 +37,12 @@ export interface PaginationParams {
 }
 
 /**
- * 페이지네이션 파라미터 파싱
+ * Parse pagination parameters
  *
- * 사용 시점: limit/offset 기반 페이지네이션이 필요한 라우트
- * @param query - req.query 또는 Record<string, unknown>
- * @param maxLimit - 허용 최대 limit (기본: MAX_PAGE_LIMIT=1000)
- * @param defaultLimit - limit 미지정 시 기본값 (기본: DEFAULT_PAGE_LIMIT=100)
+ * When to use: Routes that require limit/offset-based pagination
+ * @param query - req.query or Record<string, unknown>
+ * @param maxLimit - Maximum allowed limit (default: MAX_PAGE_LIMIT=1000)
+ * @param defaultLimit - Default value when limit is not specified (default: DEFAULT_PAGE_LIMIT=100)
  */
 export function parsePagination(
   query: Record<string, unknown>,

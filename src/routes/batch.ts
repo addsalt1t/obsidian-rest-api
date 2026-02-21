@@ -20,7 +20,7 @@ const BatchWriteOpSchema = z.object({
 export function createBatchRouter(app: App): Router {
   const router = Router();
 
-  // POST /batch/read - 여러 파일 내용 일괄 조회
+  // POST /batch/read - Batch read multiple file contents
   router.post('/read', asyncHandler(async (req: Request, res: Response) => {
       const { paths } = req.body as { paths: string[] };
 
@@ -44,7 +44,7 @@ export function createBatchRouter(app: App): Router {
       return;
     }));
 
-  // POST /batch/metadata - 여러 파일 메타데이터 일괄 조회
+  // POST /batch/metadata - Batch read multiple file metadata
   router.post('/metadata', asyncHandler(async (req: Request, res: Response) => {
       const { paths } = req.body as { paths: string[] };
 
@@ -59,8 +59,8 @@ export function createBatchRouter(app: App): Router {
           throw new Error(`File not found: ${normalizedPath}`);
         }
 
-        // buildNoteJsonResponse에서 content/links 제외 후 links를 string[]로 별도 추가
-        // (batch/metadata는 links를 { link, displayText } 객체가 아닌 string[]로 반환)
+        // Exclude content/links from buildNoteJsonResponse, then add links as separate field
+        // (batch/metadata returns links as { path, displayText } objects, not the full note-json link format)
         const noteJson = buildNoteJsonResponse(app, file, '', {
           excludeContent: true,
           excludeLinks: true,
@@ -82,7 +82,7 @@ export function createBatchRouter(app: App): Router {
       return;
     }));
 
-  // POST /batch/write - 여러 파일 일괄 생성/수정
+  // POST /batch/write - Batch create/update multiple files
   router.post('/write', asyncHandler(async (req: Request, res: Response) => {
       const { operations } = req.body as { operations: BatchWriteOperation[] };
 
@@ -113,11 +113,11 @@ export function createBatchRouter(app: App): Router {
 
         let created = false;
         if (existingFile) {
-          // 기존 파일 수정
+          // Modify existing file
           await app.vault.modify(existingFile, op.content);
           await waitForMetadataReady(app, normalizedPath, { forceWait: true });
         } else {
-          // 새 파일 생성 (폴더가 없으면 자동 생성)
+          // Create new file (auto-create parent folder if missing)
           await ensureParentFolder(app, normalizedPath);
           await app.vault.create(normalizedPath, op.content);
           await waitForMetadataReady(app, normalizedPath);
@@ -132,7 +132,7 @@ export function createBatchRouter(app: App): Router {
       return;
     }));
 
-  // POST /batch/delete - 여러 파일 일괄 삭제
+  // POST /batch/delete - Batch delete multiple files
   router.post('/delete', asyncHandler(async (req: Request, res: Response) => {
       const { paths, force } = req.body as { paths: string[]; force?: boolean };
 
@@ -142,7 +142,7 @@ export function createBatchRouter(app: App): Router {
       }
 
       const results = await mapWithConcurrencySettled(paths, async (path: string) => {
-        // Path traversal 검증
+        // Path traversal validation
         validatePath(path);
 
         const { file, path: normalizedPath } = getFileWithFallback(app, path);
@@ -151,7 +151,7 @@ export function createBatchRouter(app: App): Router {
           throw new Error(`File not found: ${normalizedPath}`);
         }
 
-        // 폴더인 경우 비어있지 않으면 force 필요
+        // Non-empty folders require force flag to delete
         if (file instanceof TFolder && !force && file.children.length > 0) {
           throw new Error(`Folder is not empty: ${normalizedPath}. Use force=true to delete`);
         }

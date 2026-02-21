@@ -1,5 +1,5 @@
 /**
- * 로그 레벨 기반 로거 유틸리티
+ * Log level-based logger utility
  */
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'silent';
@@ -12,10 +12,10 @@ const LOG_LEVELS: Record<LogLevel, number> = {
   silent: 4,
 };
 
-// 기본 로그 레벨 (환경변수로 override 가능, 잘못된 값은 'info'로 fallback)
+// Default log level (can be overridden via environment variable; invalid values fall back to 'warn')
 const envLevel = process.env.LOG_LEVEL as string | undefined;
 const currentLevel: LogLevel =
-  envLevel && envLevel in LOG_LEVELS ? (envLevel as LogLevel) : 'info';
+  envLevel && envLevel in LOG_LEVELS ? (envLevel as LogLevel) : 'warn';
 
 interface Logger {
   debug: (message: string, ...args: unknown[]) => void;
@@ -25,8 +25,8 @@ interface Logger {
 }
 
 /**
- * 네임스페이스 기반 로거 생성
- * @param namespace 로그 출처 식별자 (예: 'CORS', 'Search', 'Auth')
+ * Create a namespace-based logger
+ * @param namespace - Log source identifier (e.g., 'CORS', 'Search', 'Auth')
  */
 export function createLogger(namespace: string): Logger {
   const prefix = `[${namespace}]`;

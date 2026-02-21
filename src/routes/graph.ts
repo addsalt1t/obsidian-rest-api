@@ -11,14 +11,14 @@ import { extractRequestPath } from './vault/utils';
 export function createGraphRouter(app: App): Router {
   const router = Router();
 
-  // GET /graph/links/:path - 파일의 outbound 링크
+  // GET /graph/links/:path - Outbound links of a file
   router.get('/links/*', asyncHandler(async (req: Request, res: Response) => {
       const requestPath = extractRequestPath(req);
       if (!requestPath) {
         throw Errors.badRequest('Path is required');
       }
 
-      // Path traversal 검증
+      // Path traversal validation
       validatePath(requestPath);
 
       const normalizedPath = ensureMarkdownPath(requestPath);
@@ -26,11 +26,11 @@ export function createGraphRouter(app: App): Router {
       const links = resolvedLinks[normalizedPath];
 
       if (!links) {
-        // 파일이 존재하는지 확인 (TFile 체크 불필요)
+        // Check if file exists (no TFile check needed)
         if (!app.vault.getAbstractFileByPath(normalizedPath)) {
           throw Errors.notFound('File');
         }
-        // 파일은 있지만 링크가 없는 경우
+        // File exists but has no links
         return res.json({ path: normalizedPath, links: [], count: 0 });
       }
 
@@ -39,24 +39,24 @@ export function createGraphRouter(app: App): Router {
       return;
     }));
 
-  // GET /graph/backlinks/:path - 파일을 참조하는 백링크
+  // GET /graph/backlinks/:path - Backlinks referencing a file
   router.get('/backlinks/*', asyncHandler(async (req: Request, res: Response) => {
       const requestPath = extractRequestPath(req);
       if (!requestPath) {
         throw Errors.badRequest('Path is required');
       }
 
-      // Path traversal 검증
+      // Path traversal validation
       validatePath(requestPath);
 
       const targetPath = ensureMarkdownPath(requestPath);
 
-      // 파일 존재 확인 (TFile 체크 불필요)
+      // Check if file exists (no TFile check needed)
       if (!app.vault.getAbstractFileByPath(targetPath)) {
         throw Errors.notFound('File');
       }
 
-      // 역방향 인덱스를 사용한 O(1) 조회
+      // O(1) lookup using reverse index
       const backlinkIndex = getBacklinkCacheService(app).getIndex();
       const backlinks = backlinkIndex.get(targetPath) || [];
 
@@ -64,20 +64,20 @@ export function createGraphRouter(app: App): Router {
       return;
     }));
 
-  // GET /graph/orphans - 링크 없는 고립 노트
+  // GET /graph/orphans - Orphan notes with no links
   router.get('/orphans', asyncHandler(async (_req: Request, res: Response) => {
       const resolvedLinks = app.metadataCache.resolvedLinks;
       const allFiles = new Set(app.vault.getMarkdownFiles().map(f => f.path));
       const linkedFiles = new Set<string>();
 
-      // 링크된 파일 수집 (다른 파일에서 링크하는 파일들)
+      // Collect linked files (files linked from other files)
       for (const links of Object.values(resolvedLinks)) {
         for (const target of Object.keys(links)) {
           linkedFiles.add(target);
         }
       }
 
-      // 고립 노트 = 다른 파일에서 링크하지 않고, 자신도 다른 파일을 링크하지 않는 파일
+      // Orphan notes = files with no inlinks and no outlinks
       const orphans = [...allFiles].filter(f => {
         const hasInlinks = linkedFiles.has(f);
         const hasOutlinks = Object.keys(resolvedLinks[f] || {}).length > 0;
@@ -88,20 +88,20 @@ export function createGraphRouter(app: App): Router {
       return;
     }));
 
-  // GET /graph/hubs?limit=10 - 가장 많이 참조되는 허브 노트
+  // GET /graph/hubs?limit=10 - Most referenced hub notes
   router.get('/hubs', asyncHandler(async (req: Request, res: Response) => {
       const limit = parseIntParam(req.query.limit, 10) as number;
       const resolvedLinks = app.metadataCache.resolvedLinks;
       const inlinkCount: Record<string, number> = {};
 
-      // 각 파일이 몇 번 참조되는지 계산
+      // Count how many times each file is referenced
       for (const links of Object.values(resolvedLinks)) {
         for (const [target, count] of Object.entries(links)) {
           inlinkCount[target] = (inlinkCount[target] || 0) + count;
         }
       }
 
-      // 참조 횟수 기준 내림차순 정렬
+      // Sort by reference count in descending order
       const hubs = Object.entries(inlinkCount)
         .sort((a, b) => b[1] - a[1])
         .slice(0, limit)

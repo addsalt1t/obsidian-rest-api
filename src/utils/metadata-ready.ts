@@ -1,34 +1,34 @@
 /**
- * metadataCache 준비 대기 유틸리티
- * move/rename 후 Obsidian이 metadataCache를 재인덱싱할 때까지 대기
+ * metadataCache readiness waiting utility
+ * Waits until Obsidian re-indexes metadataCache after move/rename operations
  */
 
 import { App, TAbstractFile, TFile } from 'obsidian';
 
-/** 기본 대기 타임아웃 (밀리초) */
+/** Default wait timeout (milliseconds) */
 const DEFAULT_TIMEOUT_MS = 2000;
 
-/** waitForMetadataReady 옵션 */
+/** Options for waitForMetadataReady */
 export interface WaitForMetadataOptions {
-  /** 대기 타임아웃 (밀리초, 기본 2000) */
+  /** Wait timeout in milliseconds (default: 2000) */
   timeoutMs?: number;
   /**
-   * true면 캐시가 이미 존재해도 다음 changed 이벤트까지 대기.
-   * modify 후 stale 캐시를 갱신 대기할 때 사용.
+   * If true, wait for the next changed event even if cache already exists.
+   * Use when waiting for stale cache to refresh after a modify operation.
    */
   forceWait?: boolean;
 }
 
-/** TAbstractFile이 TFile인지 확인 (duck typing — mock 환경 호환) */
+/** Check if a TAbstractFile is a TFile (duck typing -- compatible with mock environments) */
 function isTFile(file: TAbstractFile): file is TFile {
   return 'extension' in file;
 }
 
 /**
- * 지정된 경로의 metadataCache가 준비될 때까지 대기
- * - forceWait=false (기본): 캐시가 이미 존재하면 즉시 true 반환
- * - forceWait=true: 캐시 존재 여부와 무관하게 다음 changed 이벤트 대기
- * - 타임아웃 시 false 반환 (진행은 가능)
+ * Wait until metadataCache is ready for the specified path
+ * - forceWait=false (default): returns true immediately if cache already exists
+ * - forceWait=true: waits for the next changed event regardless of cache existence
+ * - Returns false on timeout (processing can still proceed)
  */
 export function waitForMetadataReady(
   app: App,
@@ -37,13 +37,13 @@ export function waitForMetadataReady(
 ): Promise<boolean> {
   const { timeoutMs = DEFAULT_TIMEOUT_MS, forceWait = false } = options;
 
-  // TFile 확인
+  // Verify TFile
   const file = app.vault.getAbstractFileByPath(path);
   if (!file || !isTFile(file)) {
     return Promise.resolve(false);
   }
 
-  // forceWait가 아니고 캐시가 이미 존재하면 즉시 반환
+  // If not forceWait and cache already exists, return immediately
   if (!forceWait) {
     const existing = app.metadataCache.getFileCache(file);
     if (existing) {
@@ -51,7 +51,7 @@ export function waitForMetadataReady(
     }
   }
 
-  // 이벤트 대기
+  // Wait for event
   return new Promise<boolean>((resolve) => {
     let settled = false;
 

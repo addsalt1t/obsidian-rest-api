@@ -1,9 +1,9 @@
 /**
- * Vector 서비스 내부 타입
+ * Vector service internal types
  */
 
 /**
- * 임베딩 캐시 엔트리
+ * Embedding cache entry
  */
 export interface EmbeddingEntry {
   path: string;

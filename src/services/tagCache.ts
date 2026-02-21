@@ -1,8 +1,8 @@
 /**
- * 이벤트 기반 태그 캐시 서비스
- * - vault/metadata 이벤트 시 즉시 무효화
- * - TTL 폴백 (이벤트 누락 안전장치)
- * - FileListCache 싱글톤 패턴 동일
+ * Event-driven tag cache service
+ * - Immediate invalidation on vault/metadata events
+ * - TTL fallback (safety net for missed events)
+ * - Same singleton pattern as FileListCache
  */
 
 import { App, Events } from 'obsidian';
@@ -39,11 +39,11 @@ export class TagCacheService {
   }
 
   private setupEventListeners(): void {
-    // vault 이벤트: 파일 생성/삭제/이름변경 시 즉시 무효화
+    // Vault events: immediate invalidation on file creation/deletion/rename
     this.vaultRefs.push(this.app.vault.on('create', () => this.invalidate()));
     this.vaultRefs.push(this.app.vault.on('delete', () => this.invalidate()));
     this.vaultRefs.push(this.app.vault.on('rename', () => this.invalidate()));
-    // metadata 이벤트: 태그 편집(인라인/프론트매터) 시 즉시 무효화
+    // Metadata events: immediate invalidation on tag edits (inline/frontmatter)
     this.metadataRefs.push(this.app.metadataCache.on('changed', () => this.invalidate()));
   }
 
@@ -57,7 +57,7 @@ export class TagCacheService {
       return this.cache.tags;
     }
 
-    // 캐시 재구축 (getTags는 Obsidian 비공식 API)
+    // Rebuild cache (getTags is an undocumented Obsidian API)
     if (!hasGetTags(this.app.metadataCache)) {
       this.cache = { tags: [], timestamp: now };
       return [];
@@ -83,7 +83,7 @@ export class TagCacheService {
   }
 }
 
-// 전역 싱글톤
+// Global singleton
 let globalTagCache: TagCacheService | null = null;
 
 export function getTagCacheService(app: App): TagCacheService {

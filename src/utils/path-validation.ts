@@ -1,47 +1,47 @@
 /**
- * Path traversal 검증 유틸리티
- * Vault 외부 접근을 방지하기 위한 경로 검증
+ * Path traversal validation utilities
+ * Path validation to prevent access outside the vault
  */
 
 /**
- * 경로가 path traversal 공격을 시도하는지 검사
- * @param path - 검사할 경로
- * @returns 안전한 경로면 true
+ * Check if a path attempts path traversal attacks
+ * @param path - The path to validate
+ * @returns true if the path is safe
  */
 export function isSafePath(path: string): boolean {
-  // 빈 경로는 안전 (루트)
+  // Empty path is safe (root)
   if (!path || path === '/') {
     return true;
   }
 
-  // Unix 절대 경로 차단 (슬래시로 시작)
+  // Block Unix absolute paths (starting with slash)
   if (path.startsWith('/')) {
     return false;
   }
 
-  // Windows 절대 경로 차단 (드라이브 문자)
+  // Block Windows absolute paths (drive letter)
   if (/^[A-Za-z]:/.test(path)) {
     return false;
   }
 
-  // null 바이트 차단 (파일시스템 취약점)
+  // Block null bytes (filesystem vulnerability)
   if (path.includes('\0')) {
     return false;
   }
 
-  // 경로 세그먼트 분석
+  // Analyze path segments
   const segments = path.split(/[/\\]/);
 
   for (const segment of segments) {
-    // 빈 세그먼트 (연속 슬래시 또는 앞뒤 슬래시) - 허용
+    // Empty segments (consecutive slashes or leading/trailing slashes) - allowed
     if (!segment) continue;
 
-    // 상위 디렉토리 참조 차단
+    // Block parent directory references
     if (segment === '..' || segment === '...' || segment.includes('..')) {
       return false;
     }
 
-    // Windows 특수 장치 이름 차단
+    // Block Windows reserved device names
     const windowsReserved = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
     const baseSegment = segment.split('.')[0];
     if (windowsReserved.test(baseSegment)) {
@@ -53,9 +53,9 @@ export function isSafePath(path: string): boolean {
 }
 
 /**
- * 경로를 검증하고 안전하지 않으면 에러 throw
- * @param path - 검사할 경로
- * @throws {PathValidationError} 안전하지 않은 경로인 경우
+ * Validate a path and throw an error if it is unsafe
+ * @param path - The path to validate
+ * @throws {PathValidationError} If the path is unsafe
  */
 export function validatePath(path: string): void {
   if (!isSafePath(path)) {
@@ -64,7 +64,7 @@ export function validatePath(path: string): void {
 }
 
 /**
- * 경로 검증 에러
+ * Path validation error
  */
 export class PathValidationError extends Error {
   public readonly path: string;

@@ -24,19 +24,19 @@ export default class ExtendedRestApiPlugin extends Plugin {
   async onload(): Promise<void> {
     await this.loadSettings();
 
-    // API 키가 없으면 자동 생성
+    // Auto-generate API key if not set
     if (!this.settings.apiKey) {
       this.settings.apiKey = generateApiKey();
       await this.saveSettings();
     }
 
-    // 설정 탭 추가
+    // Add settings tab
     this.addSettingTab(new ExtendedRestApiSettingTab(this.app, this));
 
-    // 서버 생성 및 시작
+    // Create and start server
     this.server = createServer(this.app, () => this.settings);
 
-    // Obsidian이 완전히 로드된 후 서버 시작
+    // Start server after Obsidian is fully loaded
     this.app.workspace.onLayoutReady(async () => {
       try {
         await this.server?.start();
@@ -47,7 +47,7 @@ export default class ExtendedRestApiPlugin extends Plugin {
       }
     });
 
-    // 명령어: 서버 재시작
+    // Command: restart server
     this.addCommand({
       id: 'restart-server',
       name: 'Restart Extended REST API server',
@@ -56,7 +56,7 @@ export default class ExtendedRestApiPlugin extends Plugin {
       }
     });
 
-    // 명령어: API 키 복사
+    // Command: copy API key
     this.addCommand({
       id: 'copy-api-key',
       name: 'Copy API key to clipboard',
@@ -66,7 +66,7 @@ export default class ExtendedRestApiPlugin extends Plugin {
       }
     });
 
-    // 명령어: 서버 상태 표시
+    // Command: show server status
     this.addCommand({
       id: 'show-server-status',
       name: 'Show server status',
@@ -106,7 +106,7 @@ export default class ExtendedRestApiPlugin extends Plugin {
   async restartServer(): Promise<void> {
     try {
       await this.server?.stop();
-      // 서버 인스턴스 재생성 (새 설정 반영)
+      // Recreate server instance (apply new settings)
       this.server = createServer(this.app, () => this.settings);
       await this.server.start();
       new Notice('Extended REST API server restarted');

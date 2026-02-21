@@ -1,5 +1,5 @@
 /**
- * 표준화된 에러 처리 미들웨어
+ * Standardized error handling middleware.
  */
 
 import { Request, Response, NextFunction } from 'express';
@@ -9,16 +9,16 @@ import { PathValidationError } from '../utils/path-validation';
 const logger = createLogger('Error');
 
 /**
- * API 에러 응답 인터페이스
+ * API error response interface.
  */
 interface ApiErrorResponse {
-  error: string;      // 에러 코드 (예: 'VALIDATION_ERROR')
-  message: string;    // 사람이 읽을 수 있는 메시지
-  details?: unknown;  // 추가 세부 정보
+  error: string;      // Error code (e.g., 'VALIDATION_ERROR')
+  message: string;    // Human-readable message
+  details?: unknown;  // Additional details
 }
 
 /**
- * API 에러 클래스
+ * API error class.
  */
 class ApiError extends Error {
   constructor(
@@ -44,7 +44,7 @@ class ApiError extends Error {
 }
 
 /**
- * 자주 사용되는 에러 팩토리 함수
+ * Commonly used error factory functions.
  */
 export const Errors = {
   notFound(resource: string, details?: unknown): ApiError {
@@ -85,7 +85,7 @@ export const Errors = {
 };
 
 /**
- * Express 에러 핸들링 미들웨어
+ * Express error handling middleware.
  */
 export function errorHandler(
   err: Error,
@@ -93,13 +93,13 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ): void {
-  // ApiError인 경우
+  // ApiError case
   if (err instanceof ApiError) {
     res.status(err.statusCode).json(err.toResponse());
     return;
   }
 
-  // PathValidationError인 경우 (path traversal 시도)
+  // PathValidationError case (path traversal attempt)
   if (err instanceof PathValidationError) {
     logger.warn(`Path traversal attempt: ${err.path}`);
     res.status(err.statusCode).json({
@@ -118,7 +118,7 @@ export function errorHandler(
     return;
   }
 
-  // 일반 에러인 경우 — 내부 정보 유출 방지 (상세 에러는 logger에서 확인)
+  // Generic error case -- prevent internal info leakage (check logger for details)
   logger.error(`[${req.method} ${req.path}] Error:`, err);
   res.status(500).json({
     error: 'INTERNAL_ERROR',

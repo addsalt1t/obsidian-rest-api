@@ -34,14 +34,14 @@ interface DataArray<T> {
 }
 
 function getDataviewApi(app: App): DataviewApi | null {
-  // @ts-expect-error - plugins는 Obsidian API에 공식적으로 노출되지 않음
+  // @ts-expect-error - plugins is not officially exposed in Obsidian API
   const dataviewPlugin = app.plugins?.plugins?.dataview;
   return dataviewPlugin?.api || null;
 }
 
 function createDataviewHandler(app: App, expectedType: string | null) {
   return asyncHandler(async (req: Request, res: Response) => {
-      // Zod 스키마로 요청 본문 검증
+      // Validate request body with Zod schema
       const parseResult = DataviewQuerySchema.safeParse(req.body);
       if (!parseResult.success) {
         throw Errors.validationError('Invalid request body', parseResult.error.issues);
@@ -49,7 +49,7 @@ function createDataviewHandler(app: App, expectedType: string | null) {
 
       const { query } = parseResult.data;
 
-      // 쿼리 타입 검증 (expectedType이 null이면 모든 타입 허용)
+      // Validate query type (all types allowed when expectedType is null)
       if (expectedType) {
         const trimmedQuery = query.trim().toUpperCase();
         if (!trimmedQuery.startsWith(expectedType)) {
@@ -59,7 +59,7 @@ function createDataviewHandler(app: App, expectedType: string | null) {
 
       const dataview = getDataviewApi(app)!;
 
-      // 타임아웃 적용
+      // Apply timeout
       const result = await Promise.race([
         dataview.query(query),
         new Promise<never>((_, reject) =>
@@ -77,7 +77,7 @@ function createDataviewHandler(app: App, expectedType: string | null) {
           values: limitedValues,
           ...(truncated && { truncated: true, totalCount: values.length, limit: DATAVIEW_MAX_RESULTS }),
         };
-        // TABLE 쿼리는 headers 포함
+        // Include headers for TABLE queries
         if (result.value.headers) {
           response.headers = result.value.headers;
         }
@@ -92,7 +92,7 @@ function createDataviewHandler(app: App, expectedType: string | null) {
 export function createDataviewRouter(app: App): Router {
   const router = Router();
 
-  // 미들웨어: Dataview 플러그인 존재 여부 확인
+  // Middleware: Check if Dataview plugin is available
   router.use((_req, _res, next) => {
     const dataview = getDataviewApi(app);
     if (!dataview) {

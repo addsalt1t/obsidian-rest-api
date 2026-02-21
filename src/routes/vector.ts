@@ -1,7 +1,7 @@
 /**
  * Vector route handler
  *
- * TF-IDF 기반 시맨틱 검색 엔드포인트
+ * TF-IDF based semantic search endpoints
  */
 import { Router, Request, Response } from 'express';
 import { App } from 'obsidian';

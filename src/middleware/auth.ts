@@ -9,7 +9,7 @@ const logger = createLogger('Auth');
  * Constant-time string comparison using Node.js crypto.
  * Obsidian runs in Electron which has full Node.js crypto access.
  *
- * 길이가 다른 문자열도 동일한 시간에 비교하여 타이밍 공격 방지
+ * Compares strings of different lengths in constant time to prevent timing attacks.
  */
 export function timingSafeEqual(a: string, b: string): boolean {
   const bufA = Buffer.from(a, 'utf-8');

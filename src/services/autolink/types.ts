@@ -1,9 +1,9 @@
 /**
- * Autolink 서비스 내부 타입
+ * Autolink service internal types
  */
 
 /**
- * 내부용 엔티티 정보 (frontmatter에서 추출)
+ * Internal entity info (extracted from frontmatter)
  */
 export interface AutolinkEntityInternal {
   path: string;
@@ -12,7 +12,7 @@ export interface AutolinkEntityInternal {
 }
 
 /**
- * 정렬된 이름 목록 항목 (스캔/링크화에서 사용)
+ * Sorted name list entry (used in scan/linkify)
  */
 export interface NameEntry {
   name: string;

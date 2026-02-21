@@ -16,7 +16,7 @@ export function createCommandsRouter(app: App): Router {
 
   /**
    * GET /commands/
-   * 사용 가능한 모든 명령어 목록
+   * List all available commands
    */
   router.get('/', asyncHandler(async (_req: Request, res: Response) => {
       // @ts-expect-error - commands is internal API
@@ -27,7 +27,7 @@ export function createCommandsRouter(app: App): Router {
         name: (cmd as { name?: string })?.name || id,
       }));
 
-      // 이름순 정렬
+      // Sort by name
       commandList.sort((a, b) => a.name.localeCompare(b.name));
 
       res.json({ commands: commandList });
@@ -36,7 +36,7 @@ export function createCommandsRouter(app: App): Router {
 
   /**
    * POST /commands/:commandId
-   * 특정 명령어 실행
+   * Execute a specific command
    */
   router.post('/', asyncHandler(async () => {
       throw Errors.badRequest('Command ID is required');
@@ -48,14 +48,14 @@ export function createCommandsRouter(app: App): Router {
         throw Errors.badRequest('Command ID is required');
       }
 
-      // 트레일링 슬래시 정규화 (방어적 처리)
+      // Normalize trailing slash (defensive handling)
       const commandId = rawCommandId.replace(/\/$/, '');
 
       if (!commandId) {
         throw Errors.badRequest('Command ID is required');
       }
 
-      // 위험한 명령어 차단
+      // Block dangerous commands
       if (isBlockedCommand(commandId)) {
         logger.warn(`Blocked command execution attempt: ${commandId}`);
         throw Errors.forbidden('This command is blocked for security reasons');
@@ -68,7 +68,7 @@ export function createCommandsRouter(app: App): Router {
         throw Errors.notFound('Command', { commandId });
       }
 
-      // 명령어 실행
+      // Execute command
       // @ts-expect-error - executeCommandById is internal API
       const result = app.commands.executeCommandById(commandId);
 
@@ -84,14 +84,14 @@ export function createCommandsRouter(app: App): Router {
 }
 
 /**
- * /open/:path 라우트를 위한 별도 라우터
+ * Separate router for the /open/:path route
  */
 export function createOpenRouter(app: App): Router {
   const router = Router();
 
   /**
    * POST /open/:path
-   * 파일을 에디터에서 열기
+   * Open a file in the editor
    */
   router.post('/', asyncHandler(async () => {
       throw Errors.badRequest('Path is required');
@@ -103,7 +103,7 @@ export function createOpenRouter(app: App): Router {
         throw Errors.badRequest('Path is required');
       }
 
-      // Path traversal 검증
+      // Path traversal validation
       validatePath(requestPath);
 
       const normalizedPath = ensureMarkdownPath(requestPath);
@@ -113,10 +113,10 @@ export function createOpenRouter(app: App): Router {
         throw Errors.notFound('File', { path: normalizedPath });
       }
 
-      // 새 탭 옵션 확인
+      // Check new tab option
       const newLeaf = req.query.newLeaf === 'true' || req.body?.newLeaf === true;
 
-      // 파일 열기
+      // Open file
       await app.workspace.getLeaf(newLeaf).openFile(file);
 
       res.json({

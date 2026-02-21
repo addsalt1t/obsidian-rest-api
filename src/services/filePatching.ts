@@ -1,6 +1,6 @@
 /**
- * 파일 패치 서비스
- * 헤딩, 라인, 프론트매터 키 기반 패치 로직 통합
+ * File patching service
+ * Unified patch logic for heading, line, and frontmatter key-based patches
  */
 
 import type {
@@ -69,8 +69,8 @@ function detectLineEnding(content: string): LineEnding {
 }
 
 /**
- * 최상위 YAML 경계(다음 키/주석 시작)인지 판단
- * 멀티라인 값의 잔여 라인을 함께 치환하기 위해 사용
+ * Determines whether a line is a top-level YAML boundary (next key/comment start).
+ * Used to replace remaining lines of multiline values together.
  */
 const TOP_LEVEL_YAML_KEY_OR_COMMENT = /^(?:#|([^"'#\s][^:]*|".*?"|'.*?')\s*:)/;
 function isTopLevelYamlBoundary(line: string): boolean {
@@ -101,10 +101,10 @@ interface PatchResult {
 export type { HeadingInfo, HeadingResolveResult };
 
 /**
- * 헤딩 텍스트로 전체 경로를 해석
- * @param content - 파일 내용
- * @param headingText - 찾을 헤딩 텍스트 (예: "Subsection")
- * @returns 해석 결과 (찾은 헤딩들과 중복 여부)
+ * Resolve full path by heading text
+ * @param content - File content
+ * @param headingText - Heading text to find (e.g., "Subsection")
+ * @returns Resolution result (found headings and whether there are duplicates)
  */
 export function resolveHeadingPath(content: string, headingText: string): HeadingResolveResult {
   const lines = content.split('\n');
@@ -236,11 +236,11 @@ const HEADING_PATCH_HANDLERS: Record<PatchOperation, HeadingPatchHandler> = {
 };
 
 /**
- * 헤딩 기반 패치
- * @param content - 원본 파일 내용
- * @param heading - 헤딩 경로 (예: "Section::Subsection")
- * @param operation - 패치 작업 유형
- * @param newContent - 새로운 내용
+ * Heading-based patch
+ * @param content - Original file content
+ * @param heading - Heading path (e.g., "Section::Subsection")
+ * @param operation - Patch operation type
+ * @param newContent - New content
  */
 export function patchByHeading(
   content: string,
@@ -281,11 +281,11 @@ const LINE_PATCH_HANDLERS: Record<PatchOperation, LinePatchHandler> = {
 };
 
 /**
- * 라인 기반 패치
- * @param content - 원본 파일 내용
- * @param lineNum - 라인 번호 (1-based)
- * @param operation - 패치 작업 유형
- * @param newContent - 새로운 내용
+ * Line-based patch
+ * @param content - Original file content
+ * @param lineNum - Line number (1-based)
+ * @param operation - Patch operation type
+ * @param newContent - New content
  */
 export function patchByLine(
   content: string,
@@ -326,11 +326,11 @@ const BLOCK_PATCH_HANDLERS: Record<PatchOperation, BlockPatchHandler> = {
 };
 
 /**
- * 블록 ID 기반 패치
- * @param content - 원본 파일 내용
- * @param blockId - 블록 ID (^id 형태에서 ^ 제외)
- * @param operation - 패치 작업 유형
- * @param newContent - 새로운 내용
+ * Block ID-based patch
+ * @param content - Original file content
+ * @param blockId - Block ID (without the ^ prefix from ^id format)
+ * @param operation - Patch operation type
+ * @param newContent - New content
  */
 export function patchByBlock(
   content: string,
@@ -350,7 +350,7 @@ export function patchByBlock(
   }
 
   if (targetIndex === -1) {
-    return { content, found: false }; // 블록을 찾지 못함
+    return { content, found: false }; // Block not found
   }
 
   const resultLines = [...lines];
@@ -432,10 +432,10 @@ function replaceFrontmatter(content: string, frontmatterLines: string[], lineEnd
 }
 
 /**
- * 프론트매터 키 패치
- * @param content - 원본 파일 내용
- * @param key - 프론트매터 키
- * @param value - 새로운 값 (JSON 문자열 또는 일반 문자열)
+ * Frontmatter key patch
+ * @param content - Original file content
+ * @param key - Frontmatter key
+ * @param value - New value (JSON string or plain string)
  */
 export function patchFrontmatterKey(content: string, key: string, value: string): string {
   const lineEnding = detectLineEnding(content);
