@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { App, TFolder } from 'obsidian';
+import { App } from 'obsidian';
 import { z } from 'zod';
 import type { BatchWriteOperation } from '@obsidian-workspace/shared-types';
 import { Errors } from '../middleware/error';
@@ -134,7 +134,7 @@ export function createBatchRouter(app: App): Router {
 
   // POST /batch/delete - Batch delete multiple files
   router.post('/delete', asyncHandler(async (req: Request, res: Response) => {
-      const { paths, force } = req.body as { paths: string[]; force?: boolean };
+      const { paths } = req.body as { paths: string[] };
 
       const validation = validateBatchArray(paths);
       if (!validation.valid) {
@@ -149,11 +149,6 @@ export function createBatchRouter(app: App): Router {
 
         if (!file) {
           throw new Error(`File not found: ${normalizedPath}`);
-        }
-
-        // Non-empty folders require force flag to delete
-        if (file instanceof TFolder && !force && file.children.length > 0) {
-          throw new Error(`Folder is not empty: ${normalizedPath}. Use force=true to delete`);
         }
 
         await app.vault.delete(file, true);

@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { App, TFile, MarkdownView } from 'obsidian';
-import { extractAppendContent } from '../utils/content';
+import { extractContent, extractAppendContent } from '../utils/content';
 import { dispatchPatch } from '../utils/patch-dispatcher';
 import { buildNoteJsonResponse } from '../utils/response-builders';
 import { Errors } from '../middleware/error';
-import { ERROR_MSG, MIME_TYPE } from '../constants';
+import { MIME_TYPE } from '../constants';
 import { parsePatchRequestParts } from '../utils/patch-request';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { waitForMetadataReady } from '../utils/metadata-ready';
@@ -28,7 +28,7 @@ export function createActiveRouter(app: App): Router {
       const file = getActiveFile();
 
       if (!file) {
-        throw Errors.notFound(ERROR_MSG.NO_ACTIVE_FILE);
+        throw Errors.notFound('Active file');
       }
 
       const acceptHeader = req.headers.accept || MIME_TYPE.TEXT_MARKDOWN;
@@ -53,10 +53,10 @@ export function createActiveRouter(app: App): Router {
       const file = getActiveFile();
 
       if (!file) {
-        throw Errors.notFound(ERROR_MSG.NO_ACTIVE_FILE);
+        throw Errors.notFound('Active file');
       }
 
-      const content = extractAppendContent(req);
+      const content = extractContent(req);
       await app.vault.modify(file, content);
       await waitForMetadataReady(app, file.path, { forceWait: true });
 
@@ -72,7 +72,7 @@ export function createActiveRouter(app: App): Router {
       const file = getActiveFile();
 
       if (!file) {
-        throw Errors.notFound(ERROR_MSG.NO_ACTIVE_FILE);
+        throw Errors.notFound('Active file');
       }
 
       const content = extractAppendContent(req);
@@ -94,11 +94,11 @@ export function createActiveRouter(app: App): Router {
       const file = getActiveFile();
 
       if (!file) {
-        throw Errors.notFound(ERROR_MSG.NO_ACTIVE_FILE);
+        throw Errors.notFound('Active file');
       }
 
       const { operation, targetType, target } = parsePatchRequestParts(req);
-      const content = extractAppendContent(req);
+      const content = extractContent(req);
 
       const existingContent = await app.vault.read(file);
 
@@ -130,7 +130,7 @@ export function createActiveRouter(app: App): Router {
       const file = getActiveFile();
 
       if (!file) {
-        throw Errors.notFound(ERROR_MSG.NO_ACTIVE_FILE);
+        throw Errors.notFound('Active file');
       }
 
       const path = file.path;

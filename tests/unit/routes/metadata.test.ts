@@ -205,7 +205,8 @@ describe('Metadata Router', () => {
       const res = await request(app).get('/metadata/');
 
       expect(res.status).toBe(400);
-      expect(res.body.error).toBe('Path is required');
+      expect(res.body.error).toBe('BAD_REQUEST');
+      expect(res.body.message).toBe('Path is required');
     });
 
     it('should return 404 for non-existent file', async () => {
@@ -215,7 +216,8 @@ describe('Metadata Router', () => {
       const res = await request(app).get('/metadata/nonexistent.md');
 
       expect(res.status).toBe(404);
-      expect(res.body.error).toBe('File not found');
+      expect(res.body.error).toBe('NOT_FOUND');
+      expect(res.body.message).toBe('File not found');
     });
 
     it('should return 400 for path traversal attempt', async () => {

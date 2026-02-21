@@ -1,10 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { App } from 'obsidian';
-import { HTTP_STATUS, ERROR_MSG } from '../constants';
+import { ERROR_MSG } from '../constants';
 import { resolveSafeFilePathWithNormalized } from '../utils/file-helpers';
 import { needsFallbackRead, buildMetadataResponse } from '../utils/response-builders';
 import { getBacklinkCacheService } from '../services/backlinkCache';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { Errors } from '../middleware/error';
 import { extractRequestPath } from './vault/utils';
 
 /**
@@ -18,12 +19,12 @@ export function createMetadataRouter(app: App): Router {
   router.get('/*', asyncHandler(async (req: Request, res: Response) => {
       const requestPath = extractRequestPath(req);
       if (!requestPath) {
-        return res.status(HTTP_STATUS.BAD_REQUEST).json({ error: ERROR_MSG.PATH_REQUIRED });
+        throw Errors.badRequest(ERROR_MSG.PATH_REQUIRED);
       }
 
       const { file, normalizedPath } = resolveSafeFilePathWithNormalized(app, requestPath);
       if (!file) {
-        return res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_MSG.FILE_NOT_FOUND });
+        throw Errors.notFound('File');
       }
 
       // Only call vault.read when cache is incomplete (avoid unnecessary I/O)

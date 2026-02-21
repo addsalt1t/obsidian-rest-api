@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { App, moment, normalizePath } from 'obsidian';
 import type { PeriodicNotePeriod } from '@obsidian-workspace/shared-types';
-import { extractAppendContent } from '../utils/content';
+import { extractContent, extractAppendContent } from '../utils/content';
 import { dispatchPatch } from '../utils/patch-dispatcher';
 import { buildNoteJsonResponse } from '../utils/response-builders';
 import { getFileOrNull, ensureParentFolder } from '../utils/file-helpers';
@@ -122,7 +122,7 @@ export function createPeriodicRouter(app: App): Router {
   router.put(['/:period/', '/:period/:year/', '/:period/:year/:month/', '/:period/:year/:month/:day/'], asyncHandler(async (req: Request, res: Response) => {
       const notePath = resolvePeriodicNotePathFromRequest(req);
 
-      const content = extractAppendContent(req);
+      const content = extractContent(req);
       const existingFile = getFileOrNull(app, notePath);
 
       if (existingFile) {
@@ -174,7 +174,7 @@ export function createPeriodicRouter(app: App): Router {
       }
 
       const { operation, targetType, target } = parsePatchRequestParts(req);
-      const content = extractAppendContent(req);
+      const content = extractContent(req);
 
       const existingContent = await app.vault.read(file);
 

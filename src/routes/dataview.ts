@@ -59,13 +59,15 @@ function createDataviewHandler(app: App, expectedType: string | null) {
 
       const dataview = getDataviewApi(app)!;
 
-      // Apply timeout
+      // Apply timeout (clear timer on success to prevent leak)
+      let timeoutId: ReturnType<typeof setTimeout>;
       const result = await Promise.race([
         dataview.query(query),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Query timeout')), QUERY_TIMEOUT_MS)
-        )
+        new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('Query timeout')), QUERY_TIMEOUT_MS);
+        })
       ]);
+      clearTimeout(timeoutId!);
 
       if (result.successful && result.value) {
         const values = result.value.values || [];

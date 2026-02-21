@@ -4,17 +4,17 @@ import { validatePath } from '../utils/path-validation';
 import { getFolderOrNull } from '../utils/file-helpers';
 import { HTTP_STATUS, ERROR_MSG } from '../constants';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { Errors } from '../middleware/error';
 import { waitForMetadataReady } from '../utils/metadata-ready';
 import { handleVaultRead } from './vault/handlers/read';
 import { handleVaultPut, handleVaultPost, handleVaultDelete } from './vault/handlers/write';
 import { handleVaultPatch } from './vault/handlers/patch';
 import { extractRequestPath } from './vault/utils';
 
-function getValidatedNormalizedPath(req: Request, res: Response): string | null {
+function getValidatedNormalizedPath(req: Request): string {
   const requestPath = extractRequestPath(req);
   if (!requestPath) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ error: ERROR_MSG.PATH_REQUIRED });
-    return null;
+    throw Errors.badRequest(ERROR_MSG.PATH_REQUIRED);
   }
 
   validatePath(requestPath);
@@ -57,14 +57,11 @@ export function createFolderRouter(app: App): Router {
 
   // POST /vault/folder/{path} - Create folder
   router.post('/*', asyncHandler(async (req: Request, res: Response) => {
-      const normalizedPath = getValidatedNormalizedPath(req, res);
-      if (!normalizedPath) {
-        return;
-      }
+      const normalizedPath = getValidatedNormalizedPath(req);
 
       // Check if already exists
       if (app.vault.getAbstractFileByPath(normalizedPath)) {
-        return res.status(HTTP_STATUS.CONFLICT).json({ error: ERROR_MSG.TARGET_EXISTS });
+        throw Errors.conflict(ERROR_MSG.TARGET_EXISTS);
       }
 
       await app.vault.createFolder(normalizedPath);
@@ -74,21 +71,18 @@ export function createFolderRouter(app: App): Router {
 
   // DELETE /vault/folder/{path} - Delete folder
   router.delete('/*', asyncHandler(async (req: Request, res: Response) => {
-      const normalizedPath = getValidatedNormalizedPath(req, res);
-      if (!normalizedPath) {
-        return;
-      }
+      const normalizedPath = getValidatedNormalizedPath(req);
 
       const force = req.query.force === 'true';
       const folder = getFolderOrNull(app, normalizedPath);
 
       if (!folder) {
-        return res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_MSG.FOLDER_NOT_FOUND });
+        throw Errors.notFound('Folder');
       }
 
       // Deleting non-empty folders requires force flag
       if (!force && folder.children.length > 0) {
-        return res.status(HTTP_STATUS.CONFLICT).json({ error: ERROR_MSG.FOLDER_NOT_EMPTY });
+        throw Errors.conflict(ERROR_MSG.FOLDER_NOT_EMPTY);
       }
 
       await app.vault.delete(folder, true);
@@ -109,14 +103,11 @@ export function createMoveRenameRouter(app: App): Router {
 
   // POST /vault/{path}/move - Move file/folder
   router.post(/^\/(.+)\/move\/?$/, asyncHandler(async (req: Request, res: Response) => {
-      const oldPath = getValidatedNormalizedPath(req, res);
-      if (!oldPath) {
-        return;
-      }
+      const oldPath = getValidatedNormalizedPath(req);
 
       const { newPath } = req.body;
       if (!newPath || typeof newPath !== 'string') {
-        return res.status(HTTP_STATUS.BAD_REQUEST).json({ error: ERROR_MSG.NEW_PATH_REQUIRED });
+        throw Errors.badRequest(ERROR_MSG.NEW_PATH_REQUIRED);
       }
 
       // Path traversal validation (target path)
@@ -126,13 +117,13 @@ export function createMoveRenameRouter(app: App): Router {
 
       const file = app.vault.getAbstractFileByPath(oldPath);
       if (!file) {
-        return res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_MSG.FILE_NOT_FOUND });
+        throw Errors.notFound('File');
       }
 
       // Check if a file already exists at the target path
       const targetExists = app.vault.getAbstractFileByPath(normalizedNewPath);
       if (targetExists) {
-        return res.status(HTTP_STATUS.CONFLICT).json({ error: ERROR_MSG.TARGET_EXISTS });
+        throw Errors.conflict(ERROR_MSG.TARGET_EXISTS);
       }
 
       // fileManager.renameFile automatically updates links
@@ -145,14 +136,11 @@ export function createMoveRenameRouter(app: App): Router {
 
   // POST /vault/{path}/rename - Rename file/folder
   router.post(/^\/(.+)\/rename\/?$/, asyncHandler(async (req: Request, res: Response) => {
-      const oldPath = getValidatedNormalizedPath(req, res);
-      if (!oldPath) {
-        return;
-      }
+      const oldPath = getValidatedNormalizedPath(req);
 
       const { newName } = req.body;
       if (!newName || typeof newName !== 'string') {
-        return res.status(HTTP_STATUS.BAD_REQUEST).json({ error: 'newName is required in request body' });
+        throw Errors.badRequest('newName is required in request body');
       }
 
       // Path traversal validation (new name)
@@ -160,7 +148,7 @@ export function createMoveRenameRouter(app: App): Router {
 
       const file = app.vault.getAbstractFileByPath(oldPath);
       if (!file) {
-        return res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_MSG.FILE_NOT_FOUND });
+        throw Errors.notFound('File');
       }
 
       // Build new path from parent path + new name
@@ -171,7 +159,7 @@ export function createMoveRenameRouter(app: App): Router {
       // Check if a file already exists at the target path
       const targetExists = app.vault.getAbstractFileByPath(normalizedNewPath);
       if (targetExists) {
-        return res.status(HTTP_STATUS.CONFLICT).json({ error: ERROR_MSG.TARGET_EXISTS });
+        throw Errors.conflict(ERROR_MSG.TARGET_EXISTS);
       }
 
       // fileManager.renameFile automatically updates links

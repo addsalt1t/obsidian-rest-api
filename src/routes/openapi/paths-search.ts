@@ -30,6 +30,41 @@ const exactCountParameter = {
   description: 'Scan all files for exact total (disables early termination)',
 };
 
+/**
+ * Factory for typed Dataview endpoint definitions (LIST, TABLE, TASK).
+ * @param queryType - The Dataview query type (uppercase)
+ * @param responseNote - Optional extra note appended to the 200 description (e.g. "includes headers")
+ */
+function createTypedDataviewEndpoint(queryType: string, responseNote?: string) {
+  const successDescription = responseNote
+    ? `${queryType} query result (${responseNote})`
+    : `${queryType} query result`;
+  return {
+    post: {
+      summary: `Execute Dataview ${queryType} query`,
+      tags: ['dataview'],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['query'],
+              properties: {
+                query: { type: 'string', description: `Dataview ${queryType} query` },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        '200': { description: successDescription },
+        '400': { description: `Invalid query type (must start with ${queryType})` },
+      },
+    },
+  };
+}
+
 export const searchPaths = {
   '/search/': {
     post: {
@@ -320,76 +355,7 @@ export const searchPaths = {
       },
     },
   },
-  '/dataview/list': {
-    post: {
-      summary: 'Execute Dataview LIST query',
-      tags: ['dataview'],
-      requestBody: {
-        required: true,
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              required: ['query'],
-              properties: {
-                query: { type: 'string', description: 'Dataview LIST query' },
-              },
-            },
-          },
-        },
-      },
-      responses: {
-        '200': { description: 'LIST query result' },
-        '400': { description: 'Invalid query type (must start with LIST)' },
-      },
-    },
-  },
-  '/dataview/table': {
-    post: {
-      summary: 'Execute Dataview TABLE query',
-      tags: ['dataview'],
-      requestBody: {
-        required: true,
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              required: ['query'],
-              properties: {
-                query: { type: 'string', description: 'Dataview TABLE query' },
-              },
-            },
-          },
-        },
-      },
-      responses: {
-        '200': { description: 'TABLE query result (includes headers)' },
-        '400': { description: 'Invalid query type (must start with TABLE)' },
-      },
-    },
-  },
-  '/dataview/task': {
-    post: {
-      summary: 'Execute Dataview TASK query',
-      tags: ['dataview'],
-      requestBody: {
-        required: true,
-        content: {
-          'application/json': {
-            schema: {
-              type: 'object',
-              required: ['query'],
-              properties: {
-                query: { type: 'string', description: 'Dataview TASK query' },
-              },
-            },
-          },
-        },
-      },
-      responses: {
-        '200': { description: 'TASK query result' },
-        '400': { description: 'Invalid query type (must start with TASK)' },
-      },
-    },
-  },
+  '/dataview/list': createTypedDataviewEndpoint('LIST'),
+  '/dataview/table': createTypedDataviewEndpoint('TABLE', 'includes headers'),
+  '/dataview/task': createTypedDataviewEndpoint('TASK'),
 };

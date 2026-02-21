@@ -21,7 +21,7 @@ export function parseMarkdownMetadata(content: string): MarkdownMetadata {
   };
 
   // Parse frontmatter
-  const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+  const frontmatterMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (frontmatterMatch) {
     const yamlContent = frontmatterMatch[1];
     const lines = yamlContent.split('\n');

@@ -1010,7 +1010,8 @@ describe('Folder Router', () => {
       const res = await request(app).post('/vault/folder/existing');
 
       expect(res.status).toBe(409);
-      expect(res.body.error).toBe('Target path already exists');
+      expect(res.body.error).toBe('CONFLICT');
+      expect(res.body.message).toBe('Target path already exists');
     });
 
     it('should return 400 when path is missing', async () => {
@@ -1021,7 +1022,8 @@ describe('Folder Router', () => {
       const res = await request(app).post('/vault/folder/');
 
       expect(res.status).toBe(400);
-      expect(res.body.error).toBe('Path is required');
+      expect(res.body.error).toBe('BAD_REQUEST');
+      expect(res.body.message).toBe('Path is required');
     });
 
     it('should reject path traversal', async () => {
@@ -1060,7 +1062,8 @@ describe('Folder Router', () => {
       const res = await request(app).delete('/vault/folder/nonempty');
 
       expect(res.status).toBe(409);
-      expect(res.body.error).toBe('Folder is not empty. Use force=true to delete');
+      expect(res.body.error).toBe('CONFLICT');
+      expect(res.body.message).toBe('Folder is not empty. Use force=true to delete');
     });
 
     it('should delete non-empty folder with force=true', async () => {
@@ -1085,7 +1088,8 @@ describe('Folder Router', () => {
       const res = await request(app).delete('/vault/folder/nonexistent');
 
       expect(res.status).toBe(404);
-      expect(res.body.error).toBe('Folder not found');
+      expect(res.body.error).toBe('NOT_FOUND');
+      expect(res.body.message).toBe('Folder not found');
     });
 
     it('should return 400 when path is missing', async () => {
@@ -1171,7 +1175,8 @@ describe('Move/Rename Router', () => {
       const res = await request(app).post('/vault/source.md/move').send({ newPath: 'target.md' });
 
       expect(res.status).toBe(409);
-      expect(res.body.error).toBe('Target path already exists');
+      expect(res.body.error).toBe('CONFLICT');
+      expect(res.body.message).toBe('Target path already exists');
     });
 
     it('should return 400 when newPath is missing', async () => {
@@ -1183,7 +1188,8 @@ describe('Move/Rename Router', () => {
       const res = await request(app).post('/vault/source.md/move').send({});
 
       expect(res.status).toBe(400);
-      expect(res.body.error).toBe('newPath is required in request body');
+      expect(res.body.error).toBe('BAD_REQUEST');
+      expect(res.body.message).toBe('newPath is required in request body');
     });
 
     it('should return 400 when newPath is not a string', async () => {
@@ -1197,7 +1203,8 @@ describe('Move/Rename Router', () => {
         .send({ newPath: 123 });
 
       expect(res.status).toBe(400);
-      expect(res.body.error).toBe('newPath is required in request body');
+      expect(res.body.error).toBe('BAD_REQUEST');
+      expect(res.body.message).toBe('newPath is required in request body');
     });
 
     it('should return 404 when source path is missing (empty path becomes root)', async () => {
@@ -1310,7 +1317,8 @@ describe('Move/Rename Router', () => {
         .send({ newName: 'file2.md' });
 
       expect(res.status).toBe(409);
-      expect(res.body.error).toBe('Target path already exists');
+      expect(res.body.error).toBe('CONFLICT');
+      expect(res.body.message).toBe('Target path already exists');
     });
 
     it('should return 400 when newName is missing', async () => {
@@ -1322,7 +1330,8 @@ describe('Move/Rename Router', () => {
       const res = await request(app).post('/vault/source.md/rename').send({});
 
       expect(res.status).toBe(400);
-      expect(res.body.error).toBe('newName is required in request body');
+      expect(res.body.error).toBe('BAD_REQUEST');
+      expect(res.body.message).toBe('newName is required in request body');
     });
 
     it('should return 400 when newName is not a string', async () => {
@@ -1336,7 +1345,8 @@ describe('Move/Rename Router', () => {
         .send({ newName: { name: 'bad' } });
 
       expect(res.status).toBe(400);
-      expect(res.body.error).toBe('newName is required in request body');
+      expect(res.body.error).toBe('BAD_REQUEST');
+      expect(res.body.message).toBe('newName is required in request body');
     });
 
     it('should return 404 when path is missing (empty path becomes root)', async () => {

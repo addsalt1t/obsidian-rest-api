@@ -39,12 +39,14 @@ export async function executeDataviewQuery(app: App, body: unknown): Promise<Dat
   }
 
   try {
+    let timeoutId: ReturnType<typeof setTimeout>;
     const result = await Promise.race([
       dataviewPlugin.api.query(dql),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Query timeout')), QUERY_TIMEOUT_MS)
-      ),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Query timeout')), QUERY_TIMEOUT_MS);
+      }),
     ]);
+    clearTimeout(timeoutId!);
 
     if (!result.successful) {
       logger.warn('Dataview query failed', result.error);

@@ -2,6 +2,7 @@ import express, { Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import crypto from 'crypto';
 import https from 'https';
 import http from 'http';
 import forge from 'node-forge';
@@ -109,7 +110,7 @@ function generateSelfSignedCert(): { key: string; cert: string } {
   const cert = forge.pki.createCertificate();
 
   cert.publicKey = keys.publicKey;
-  cert.serialNumber = Date.now().toString(16) + Math.floor(Math.random() * 0xFFFF).toString(16);
+  cert.serialNumber = crypto.randomBytes(16).toString('hex');
   cert.validity.notBefore = new Date();
   cert.validity.notAfter = new Date();
   cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + CERT_VALIDITY_YEARS);

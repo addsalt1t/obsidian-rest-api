@@ -12,7 +12,7 @@ export const openApiBase = {
     description: 'Extended REST API for Obsidian vault operations',
     contact: {
       name: 'GitHub Repository',
-      url: 'https://github.com/addsalt1t/obsidian-rest-api',
+      url: 'https://github.com/jedi/obsidian-workspace',
     },
   },
   servers: [
