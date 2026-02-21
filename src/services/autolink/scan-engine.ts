@@ -8,65 +8,74 @@ import {
 } from './constants';
 import type { NameEntry } from './types';
 
-function equalsIgnoreCase(a: string, b: string): boolean {
-  return a.toLowerCase() === b.toLowerCase();
+const CJK_CHAR_PATTERN = /[\u3400-\u4DBF\u4E00-\u9FFF\uAC00-\uD7AF\u3040-\u30FF]/u;
+const HANGUL_CHAR_PATTERN = /[\uAC00-\uD7AF]/u;
+
+function isCjkText(text: string): boolean {
+  return CJK_CHAR_PATTERN.test(text);
 }
 
-function hasAliasCaseInsensitive(entity: NameEntry['entity'], matchedText: string): boolean {
-  return entity.aliases.some(alias => equalsIgnoreCase(alias, matchedText));
+function isHangulText(text: string): boolean {
+  return HANGUL_CHAR_PATTERN.test(text);
 }
 
-function getMatchConfidence(
-  matchedText: string,
-  entity: NameEntry['entity']
-): 'high' | 'medium' | 'low' {
-  if (matchedText.length <= 2) {
-    return 'low';
+function hasStrictKoreanSingleCharBoundary(
+  line: string,
+  matchStart: number,
+  matchEnd: number,
+  matchedText: string
+): boolean {
+  if (matchedText.length !== 1 || !isHangulText(matchedText)) {
+    return true;
   }
 
-  if (matchedText === entity.name) {
-    return 'high';
-  }
+  const previousChar = matchStart > 0 ? line[matchStart - 1] : '';
+  const nextChar = matchEnd < line.length ? line[matchEnd] : '';
 
-  if (equalsIgnoreCase(matchedText, entity.name)) {
-    return 'medium';
-  }
-
-  if (hasAliasCaseInsensitive(entity, matchedText)) {
-    return 'medium';
-  }
-
-  return 'high';
+  return !isHangulText(previousChar) && !isHangulText(nextChar);
 }
 
 function getScanConfidence(
   matchedText: string,
-  entity: NameEntry['entity']
+  entity: NameEntry['entity'],
+  passesKoreanSingleCharBoundary: boolean
 ): 'high' | 'medium' | 'low' {
-  return getMatchConfidence(matchedText, entity);
+  if (matchedText.length <= 2) {
+    if (!passesKoreanSingleCharBoundary) {
+      return 'low';
+    }
+    if (isCjkText(matchedText) && matchedText === entity.name) {
+      return 'high';
+    }
+    return 'low';
+  }
+  if (entity.aliases.includes(matchedText) && matchedText !== entity.name) {
+    return 'medium';
+  }
+  return 'high';
 }
 
 function getLinkifyConfidence(
   matchedText: string,
-  entity: NameEntry['entity']
+  entity: NameEntry['entity'],
+  passesKoreanSingleCharBoundary: boolean
 ): 'high' | 'medium' | 'low' {
-  return getMatchConfidence(matchedText, entity);
-}
-
-function shouldApplyLinkByConfidence(
-  confidence: 'high' | 'medium' | 'low',
-  autoConfirm: boolean
-): boolean {
-  if (confidence === 'high') {
-    return true;
+  if (matchedText.length <= 2) {
+    if (!passesKoreanSingleCharBoundary) {
+      return 'low';
+    }
+    if (
+      isCjkText(matchedText) &&
+      matchedText.toLowerCase() === entity.name.toLowerCase()
+    ) {
+      return 'high';
+    }
+    return 'low';
   }
-
-  // Keep autoConfirm for API compatibility, but never auto-apply non-high matches.
-  if (autoConfirm) {
-    return false;
+  if (matchedText.toLowerCase() !== entity.name.toLowerCase()) {
+    return 'medium';
   }
-
-  return false;
+  return 'high';
 }
 
 interface ScanEngineParams {
@@ -121,6 +130,12 @@ export function runScanEngine({
         }
 
         const matchedText = match[1];
+        const passesKoreanSingleCharBoundary = hasStrictKoreanSingleCharBoundary(
+          line,
+          col,
+          col + matchLength,
+          matchedText
+        );
         const context = line.substring(
           Math.max(0, col - CONTEXT_WINDOW_BEFORE),
           Math.min(line.length, col + matchLength + CONTEXT_WINDOW_AFTER)
@@ -134,7 +149,11 @@ export function runScanEngine({
           line: lineNum + 1,
           column: col,
           context,
-          confidence: getScanConfidence(matchedText, entity),
+          confidence: getScanConfidence(
+            matchedText,
+            entity,
+            passesKoreanSingleCharBoundary
+          ),
         });
 
         fileByEntity[entity.name] = (fileByEntity[entity.name] || 0) + 1;
@@ -186,8 +205,19 @@ export function runLinkifyEngine({
       while ((match = pattern.exec(originalLine)) !== null) {
         const matchedText = match[1];
         const particle = match[2] || '';
-        const confidence = getLinkifyConfidence(matchedText, entity);
-        const shouldApply = shouldApplyLinkByConfidence(confidence, autoConfirm);
+        const matchLength = match[0].length;
+        const passesKoreanSingleCharBoundary = hasStrictKoreanSingleCharBoundary(
+          originalLine,
+          match.index,
+          match.index + matchLength,
+          matchedText
+        );
+        const confidence = getLinkifyConfidence(
+          matchedText,
+          entity,
+          passesKoreanSingleCharBoundary
+        );
+        const shouldApply = autoConfirm || confidence === 'high';
 
         if (!shouldApply) {
           fileSkipped++;

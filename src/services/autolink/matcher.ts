@@ -16,19 +16,6 @@ interface CachedMatcher {
 
 const matcherCacheByApp = new WeakMap<App, Map<string, CachedMatcher>>();
 
-const CASE_INSENSITIVE_MIN_LENGTH = 3;
-
-function getComparableLength(name: string): number {
-  return name.replace(/[^0-9A-Za-z가-힣]/g, '').length;
-}
-
-function shouldUseCaseInsensitiveMatch(name: string): boolean {
-  if (!/[A-Za-z]/.test(name)) {
-    return false;
-  }
-  return getComparableLength(name) >= CASE_INSENSITIVE_MIN_LENGTH;
-}
-
 /**
  * Build regex pattern from entity name (with Korean particle support)
  */
@@ -36,11 +23,10 @@ export function buildEntityPattern(name: string, aliases: string[] = []): RegExp
   const safeAliases = aliases.slice(0, MAX_ALIASES);
   const allNames = [name, ...safeAliases].map(entry => entry.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   const namesPattern = allNames.join('|');
-  const flags = shouldUseCaseInsensitiveMatch(name) ? 'gi' : 'g';
 
   return new RegExp(
-    `(?<!\\[\\[)(?<!\\|)(?<![0-9A-Za-z가-힣_])(${namesPattern})(${KO_PARTICLES})?(?![0-9A-Za-z가-힣_])(?!\\]\\])`,
-    flags
+    `(?<!\\[\\[)(?<!\\|)(${namesPattern})(${KO_PARTICLES})?(?![가-힣])(?!\\]\\])`,
+    'g'
   );
 }
 

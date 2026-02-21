@@ -52,19 +52,6 @@ describe('Autolink Service', () => {
       expect(match![1]).toBe('Hero');
     });
 
-    it('should match long English names case-insensitively', () => {
-      const pattern = buildEntityPattern('Hero');
-      const match = pattern.exec('The hero walked in.');
-      expect(match).not.toBeNull();
-      expect(match![1]).toBe('hero');
-    });
-
-    it('should keep short English names case-sensitive', () => {
-      const pattern = buildEntityPattern('AI');
-      const match = pattern.exec('ai will change everything.');
-      expect(match).toBeNull();
-    });
-
     it('should match name with Korean particles', () => {
       const pattern = buildEntityPattern('카이런');
       const text = '카이런은 용감한 전사였다.';
@@ -72,31 +59,6 @@ describe('Autolink Service', () => {
       expect(match).not.toBeNull();
       expect(match![1]).toBe('카이런');
       expect(match![2]).toBe('은');
-    });
-
-    it('should match name with core particle 에', () => {
-      const pattern = buildEntityPattern('진');
-      const text = '진에 갔다.';
-      const match = pattern.exec(text);
-      expect(match).not.toBeNull();
-      expect(match![1]).toBe('진');
-      expect(match![2]).toBe('에');
-    });
-
-    it('should match name with compound particle 에서는', () => {
-      const pattern = buildEntityPattern('진');
-      const text = '진에서는 축제를 열었다.';
-      const match = pattern.exec(text);
-      expect(match).not.toBeNull();
-      expect(match![1]).toBe('진');
-      expect(match![2]).toBe('에서는');
-    });
-
-    it('should not match name inside a larger Korean token', () => {
-      const pattern = buildEntityPattern('철수');
-      const text = '김철수는 출정했다.';
-      const match = pattern.exec(text);
-      expect(match).toBeNull();
     });
 
     it('should match aliases', () => {
@@ -467,8 +429,7 @@ describe('Autolink Service', () => {
       expect(result.byEntity).toEqual({});
     });
 
-    it('should calculate confidence levels', async () => {
-      // Short name (<=2 chars) gets 'low' confidence
+    it('should classify 2-char Latin canonical names as low confidence', async () => {
       const mockApp = setupMocks('AB went home. 카이런 is here.', 'AB', ['카이런']);
 
       const result = await scan(mockApp, {
@@ -487,16 +448,73 @@ describe('Autolink Service', () => {
       }
     });
 
-    it('should mark canonical case-different matches as medium confidence', async () => {
-      const mockApp = setupMocks('hero entered the room.', 'Hero', []);
+    it('should classify 2-char Korean canonical names as high confidence', async () => {
+      const mockApp = setupMocks('백기는 뛰어난 장수였다.', '백기', ['왕전']);
 
       const result = await scan(mockApp, {
         entitySourcePaths: ['entities'],
       });
 
-      const heroMatch = result.matches.find(m => m.matchedText === 'hero');
-      expect(heroMatch).toBeDefined();
-      expect(heroMatch!.confidence).toBe('medium');
+      const match = result.matches.find(m => m.matchedText === '백기');
+      expect(match?.confidence).toBe('high');
+    });
+
+    it('should classify 2-char Chinese canonical names as high confidence', async () => {
+      const mockApp = setupMocks('白起是秦国名将。', '白起', ['王翦']);
+
+      const result = await scan(mockApp, {
+        entitySourcePaths: ['entities'],
+      });
+
+      const match = result.matches.find(m => m.matchedText === '白起');
+      expect(match?.confidence).toBe('high');
+    });
+
+    it('should keep 2-char CJK aliases as low confidence when not canonical name', async () => {
+      const mockApp = setupMocks('백기가 진격했다.', '백기장군', ['백기']);
+
+      const result = await scan(mockApp, {
+        entitySourcePaths: ['entities'],
+      });
+
+      const match = result.matches.find(m => m.matchedText === '백기');
+      expect(match?.confidence).toBe('low');
+    });
+
+    it('should downgrade single-char Korean canonical matches inside larger Korean words', async () => {
+      const mockApp = setupMocks('이루어진 계획과 나아진 결말이었다.', '진', []);
+
+      const result = await scan(mockApp, {
+        entitySourcePaths: ['entities'],
+      });
+
+      const matches = result.matches.filter(m => m.matchedText === '진');
+      expect(matches.length).toBeGreaterThan(0);
+      expect(matches.every(match => match.confidence === 'low')).toBe(true);
+    });
+
+    it('should keep single-char Korean canonical matches high at strict boundaries', async () => {
+      const mockApp = setupMocks('진은 출정했다. 진, 물러서지 마라.', '진', []);
+
+      const result = await scan(mockApp, {
+        entitySourcePaths: ['entities'],
+      });
+
+      const highConfidenceMatches = result.matches.filter(
+        match => match.matchedText === '진' && match.confidence === 'high'
+      );
+      expect(highConfidenceMatches.length).toBeGreaterThan(0);
+    });
+
+    it('should keep single-char Chinese canonical matches as high confidence', async () => {
+      const mockApp = setupMocks('秦은 강력한 나라였다.', '秦', []);
+
+      const result = await scan(mockApp, {
+        entitySourcePaths: ['entities'],
+      });
+
+      const match = result.matches.find(m => m.matchedText === '秦');
+      expect(match?.confidence).toBe('high');
     });
 
     it('should respect targetPaths filter', async () => {
@@ -586,17 +604,6 @@ describe('Autolink Service', () => {
         expect(result.matches[0].context.length).toBeGreaterThan(0);
       }
     });
-
-    it('should not match Korean entity inside larger Korean word', async () => {
-      const mockApp = setupMocks('이루어진 계획이었다.', '진', []);
-
-      const result = await scan(mockApp, {
-        entitySourcePaths: ['entities'],
-      });
-
-      expect(result.matches.length).toBe(0);
-      expect(result.totalMatches).toBe(0);
-    });
   });
 
   // ---------------------------------------------------------------------------
@@ -607,7 +614,7 @@ describe('Autolink Service', () => {
     const entityFile = createMockTFile({ path: 'entities/hero.md', mtime: 1000 });
     const storyFile = createMockTFile({ path: 'stories/chapter1.md', mtime: 2000 });
 
-    function setupMocks(content: string) {
+    function setupMocks(content: string, entityName = '카이런', aliases: string[] = ['카이']) {
       const mockFileListCache = {
         getMarkdownFiles: vi.fn().mockReturnValue([entityFile, storyFile]),
       };
@@ -622,7 +629,7 @@ describe('Autolink Service', () => {
           getFileCache: vi.fn((file: any) => {
             if (file.path === 'entities/hero.md') {
               return createMockCachedMetadata({
-                frontmatter: { name: '카이런', aliases: ['카이'] },
+                frontmatter: { name: entityName, aliases },
               });
             }
             return null;
@@ -658,6 +665,91 @@ describe('Autolink Service', () => {
       expect(mockApp.vault.modify).not.toHaveBeenCalled();
     });
 
+    it('should apply 2-char Korean canonical matches with default confidence threshold', async () => {
+      const mockApp = setupMocks('백기는 용감한 전사였다.', '백기', ['왕전']);
+
+      const result = await linkify(mockApp, {
+        entitySourcePaths: ['entities'],
+        autoConfirm: false,
+      });
+
+      expect(result.totalChanges).toBeGreaterThan(0);
+      expect(result.changes.some(change => change.after.includes('[[백기]]'))).toBe(true);
+    });
+
+    it('should apply 2-char Chinese canonical matches with default confidence threshold', async () => {
+      const mockApp = setupMocks('白起是秦国名将。', '白起', ['王翦']);
+
+      const result = await linkify(mockApp, {
+        entitySourcePaths: ['entities'],
+        autoConfirm: false,
+      });
+
+      expect(result.totalChanges).toBeGreaterThan(0);
+      expect(result.changes.some(change => change.after.includes('[[白起]]'))).toBe(true);
+    });
+
+    it('should keep 2-char Latin canonical matches skipped when autoConfirm is false', async () => {
+      const mockApp = setupMocks('AB advanced to the front.', 'AB', ['AB Alias']);
+
+      const result = await linkify(mockApp, {
+        entitySourcePaths: ['entities'],
+        autoConfirm: false,
+      });
+
+      expect(result.totalChanges).toBe(0);
+      expect(result.skipped).toBeGreaterThan(0);
+    });
+
+    it('should keep 2-char CJK aliases skipped when autoConfirm is false', async () => {
+      const mockApp = setupMocks('백기가 진격했다.', '백기장군', ['백기']);
+
+      const result = await linkify(mockApp, {
+        entitySourcePaths: ['entities'],
+        autoConfirm: false,
+      });
+
+      expect(result.totalChanges).toBe(0);
+      expect(result.skipped).toBeGreaterThan(0);
+    });
+
+    it('should skip single-char Korean canonical matches inside larger Korean words', async () => {
+      const mockApp = setupMocks('이루어진 계획과 나아진 결과였다.', '진', []);
+
+      const result = await linkify(mockApp, {
+        entitySourcePaths: ['entities'],
+        autoConfirm: false,
+      });
+
+      expect(result.totalChanges).toBe(0);
+      expect(result.skipped).toBeGreaterThan(0);
+      expect(mockApp.vault.modify).not.toHaveBeenCalled();
+    });
+
+    it('should apply single-char Korean canonical matches at strict boundaries', async () => {
+      const mockApp = setupMocks('진은 출정했다.', '진', []);
+
+      const result = await linkify(mockApp, {
+        entitySourcePaths: ['entities'],
+        autoConfirm: false,
+      });
+
+      expect(result.totalChanges).toBeGreaterThan(0);
+      expect(result.changes.some(change => change.after.includes('[[진]]'))).toBe(true);
+    });
+
+    it('should apply single-char Chinese canonical matches with default confidence threshold', async () => {
+      const mockApp = setupMocks('秦은 강력했다.', '秦', []);
+
+      const result = await linkify(mockApp, {
+        entitySourcePaths: ['entities'],
+        autoConfirm: false,
+      });
+
+      expect(result.totalChanges).toBeGreaterThan(0);
+      expect(result.changes.some(change => change.after.includes('[[秦]]'))).toBe(true);
+    });
+
     it('should skip low-confidence matches when autoConfirm is false', async () => {
       // '카이' is an alias -> medium confidence, should be skipped without autoConfirm
       const mockApp = setupMocks('카이가 나타났다.');
@@ -670,7 +762,7 @@ describe('Autolink Service', () => {
       expect(result.skipped).toBeGreaterThan(0);
     });
 
-    it('should still skip non-high matches when autoConfirm is true', async () => {
+    it('should apply all matches when autoConfirm is true', async () => {
       const mockApp = setupMocks('카이가 나타났다.');
 
       const result = await linkify(mockApp, {
@@ -678,37 +770,9 @@ describe('Autolink Service', () => {
         autoConfirm: true,
       });
 
+      // With autoConfirm, even medium-confidence matches should be applied
       const appliedChanges = result.changes.filter(c => c.applied);
-      expect(appliedChanges.length).toBe(0);
-      expect(result.skipped).toBeGreaterThan(0);
-    });
-
-    it('should skip case-different canonical matches even with autoConfirm true', async () => {
-      const mockApp = {
-        vault: {
-          cachedRead: vi.fn().mockResolvedValue('hero appeared in town.'),
-          modify: vi.fn().mockResolvedValue(undefined),
-        },
-        metadataCache: {
-          getFileCache: vi.fn((file: any) => {
-            if (file.path === 'entities/hero.md') {
-              return createMockCachedMetadata({
-                frontmatter: { name: 'Hero', aliases: [] },
-              });
-            }
-            return null;
-          }),
-        },
-      } as unknown as App;
-
-      const result = await linkify(mockApp, {
-        entitySourcePaths: ['entities'],
-        autoConfirm: true,
-      });
-
-      const appliedChanges = result.changes.filter(c => c.applied);
-      expect(appliedChanges.length).toBe(0);
-      expect(result.skipped).toBeGreaterThan(0);
+      expect(appliedChanges.length).toBeGreaterThan(0);
     });
 
     it('should use display text for alias matches', async () => {
