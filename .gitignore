@@ -9,7 +9,8 @@ main.js.map
 
 # Environment
 .env
-.env.local
+.env.*
+!.env.example
 
 # OS
 .DS_Store
