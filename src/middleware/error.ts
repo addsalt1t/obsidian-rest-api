@@ -63,8 +63,8 @@ export const Errors = {
     return new ApiError(401, 'UNAUTHORIZED', message);
   },
 
-  forbidden(message = 'Forbidden'): ApiError {
-    return new ApiError(403, 'FORBIDDEN', message);
+  forbidden(message = 'Forbidden', details?: unknown): ApiError {
+    return new ApiError(403, 'FORBIDDEN', message, details);
   },
 
   internal(message = 'Internal server error', details?: unknown): ApiError {
@@ -101,7 +101,7 @@ export function errorHandler(
 
   // PathValidationError case (path traversal attempt)
   if (err instanceof PathValidationError) {
-    logger.warn(`Path traversal attempt: ${err.path}`);
+    logger.warn('Path traversal attempt blocked');
     res.status(err.statusCode).json({
       error: 'PATH_VALIDATION_ERROR',
       message: err.message,
@@ -119,10 +119,10 @@ export function errorHandler(
   }
 
   // Generic error case -- prevent internal info leakage (check logger for details)
-  logger.error(`[${req.method} ${req.path}] Error:`, err);
+  const errorName = err?.name || 'Error';
+  logger.error(`[${req.method} ${req.path}] Internal error (${errorName})`);
   res.status(500).json({
     error: 'INTERNAL_ERROR',
     message: 'Internal server error',
   });
 }
-

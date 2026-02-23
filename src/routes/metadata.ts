@@ -7,12 +7,26 @@ import { getBacklinkCacheService } from '../services/backlinkCache';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { Errors } from '../middleware/error';
 import { extractRequestPath } from './vault/utils';
+import {
+  DEFAULT_RESPONSE_POLICY_SETTINGS,
+  resolveMetadataFields,
+  type MetadataField,
+} from '../security/response-policy';
+
+type PolicySettingsProvider = () => {
+  allowSensitiveFields: boolean;
+  sensitiveFieldAllowlist: string;
+  legacyFullResponseCompat: boolean;
+};
 
 /**
  * Unified metadata router
  * GET /metadata/{path} - Return all metadata for a file in a single response
  */
-export function createMetadataRouter(app: App): Router {
+export function createMetadataRouter(
+  app: App,
+  getPolicySettings: PolicySettingsProvider = () => DEFAULT_RESPONSE_POLICY_SETTINGS,
+): Router {
   const router = Router();
 
   // GET /metadata/{path} - Unified metadata retrieval
@@ -27,14 +41,27 @@ export function createMetadataRouter(app: App): Router {
         throw Errors.notFound('File');
       }
 
+      const includeFields = resolveMetadataFields(req, getPolicySettings());
+      const includeBacklinks = includeFields.has('backlinks');
+      const metadataFields = new Set(
+        [...includeFields].filter((field): field is Exclude<MetadataField, 'backlinks'> => field !== 'backlinks')
+      );
+
       // Only call vault.read when cache is incomplete (avoid unnecessary I/O)
-      const content = needsFallbackRead(app, file)
+      const needsFrontmatterOrTags = metadataFields.has('frontmatter') || metadataFields.has('tags');
+      const content = (needsFrontmatterOrTags && needsFallbackRead(app, file))
         ? await app.vault.read(file)
         : '';
 
-      const base = buildMetadataResponse(app, file, normalizedPath, content);
+      const base = buildMetadataResponse(app, file, normalizedPath, content, {
+        includeFields: metadataFields,
+      });
 
-      // Backlinks (O(1) lookup using reverse index)
+      if (!includeBacklinks) {
+        res.json(base);
+        return;
+      }
+
       const backlinkIndex = getBacklinkCacheService(app).getIndex();
       const backlinks = backlinkIndex.get(normalizedPath) || [];
 

@@ -82,6 +82,21 @@ export function createPathParameter(description?: string): OpenApiParameter {
   };
 }
 
+export function createFieldsQueryParameter(
+  allowedValues: string[],
+  description = 'Optional comma-separated response fields',
+): OpenApiParameter {
+  return {
+    name: 'fields',
+    in: 'query',
+    schema: {
+      type: 'string',
+      example: allowedValues.join(','),
+    },
+    description: `${description}. Allowed: ${allowedValues.join(', ')}`,
+  };
+}
+
 export function createSearchPaginationScopeParameters(
   middleParameters: OpenApiParameter[] = [],
 ): OpenApiParameter[] {

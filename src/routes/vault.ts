@@ -10,6 +10,15 @@ import { handleVaultRead } from './vault/handlers/read';
 import { handleVaultPut, handleVaultPost, handleVaultDelete } from './vault/handlers/write';
 import { handleVaultPatch } from './vault/handlers/patch';
 import { extractRequestPath } from './vault/utils';
+import {
+  DEFAULT_RESPONSE_POLICY_SETTINGS,
+} from '../security/response-policy';
+
+type PolicySettingsProvider = () => {
+  allowSensitiveFields: boolean;
+  sensitiveFieldAllowlist: string;
+  legacyFullResponseCompat: boolean;
+};
 
 function getValidatedNormalizedPath(req: Request): string {
   const requestPath = extractRequestPath(req);
@@ -21,11 +30,14 @@ function getValidatedNormalizedPath(req: Request): string {
   return normalizePath(requestPath);
 }
 
-export function createVaultRouter(app: App): Router {
+export function createVaultRouter(
+  app: App,
+  getPolicySettings: PolicySettingsProvider = () => DEFAULT_RESPONSE_POLICY_SETTINGS,
+): Router {
   const router = Router();
 
   router.get('/*', asyncHandler(async (req: Request, res: Response) => {
-    return handleVaultRead(app, req, res);
+    return handleVaultRead(app, req, res, getPolicySettings);
   }));
 
   router.put('/*', asyncHandler(async (req: Request, res: Response) => {

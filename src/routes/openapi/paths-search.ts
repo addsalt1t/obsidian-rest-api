@@ -3,6 +3,7 @@
  * Includes: search (JsonLogic/DQL), search/simple, search/glob, tags
  */
 import {
+  createFieldsQueryParameter,
   createJsonResponse,
   createSearchPaginationScopeParameters,
 } from './common';
@@ -141,7 +142,9 @@ export const searchPaths = {
       tags: ['search'],
       parameters: [
         searchQueryParameter,
-        ...createSearchPaginationScopeParameters(),
+        ...createSearchPaginationScopeParameters([
+          createFieldsQueryParameter(['context', 'offset']),
+        ]),
       ],
       requestBody: {
         description: 'Alternative: pass query in JSON body',
@@ -159,7 +162,7 @@ export const searchPaths = {
       },
       responses: {
         '200': {
-          description: 'Search results with matches and scores',
+          description: 'Search results with matches and scores (default: line only, optional context/offset via fields)',
           content: {
             'application/json': {
               schema: {

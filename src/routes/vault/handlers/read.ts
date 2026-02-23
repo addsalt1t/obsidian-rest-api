@@ -5,6 +5,10 @@ import { parseIntParam } from '../../../utils/request-parsers';
 import { buildNoteJsonResponse } from '../../../utils/response-builders';
 import { Errors } from '../../../middleware/error';
 import {
+  DEFAULT_RESPONSE_POLICY_SETTINGS,
+  resolveNoteJsonFields,
+} from '../../../security/response-policy';
+import {
   MIME_TYPE,
   TREE_DEFAULT_DEPTH,
   TREE_DEPTH_MAX,
@@ -12,6 +16,12 @@ import {
 } from '../../../constants';
 import { buildFolderTree, listFolderChildren } from '../tree';
 import { resolveValidatedVaultPath } from '../utils';
+
+type PolicySettingsProvider = () => {
+  allowSensitiveFields: boolean;
+  sensitiveFieldAllowlist: string;
+  legacyFullResponseCompat: boolean;
+};
 
 function parseFolderViewOptions(req: Request): { recursive: boolean; maxDepth: number } {
   const recursive = req.query.recursive === 'true';
@@ -37,18 +47,31 @@ function respondFolder(folder: TFolder, req: Request, res: Response): Response {
   return res.json({ files, folders });
 }
 
-async function serveFile(app: App, file: TFile, acceptHeader: string, res: Response): Promise<Response> {
+async function serveFile(
+  app: App,
+  file: TFile,
+  req: Request,
+  acceptHeader: string,
+  res: Response,
+  getPolicySettings: PolicySettingsProvider,
+): Promise<Response> {
   const content = await app.vault.read(file);
 
   if (acceptHeader.includes(MIME_TYPE.NOTE_JSON)) {
-    return res.json(buildNoteJsonResponse(app, file, content));
+    const includeFields = resolveNoteJsonFields(req, getPolicySettings());
+    return res.json(buildNoteJsonResponse(app, file, content, { includeFields }));
   }
 
   res.setHeader('Content-Type', `${MIME_TYPE.TEXT_MARKDOWN}; charset=utf-8`);
   return res.send(content);
 }
 
-export async function handleVaultRead(app: App, req: Request, res: Response): Promise<Response> {
+export async function handleVaultRead(
+  app: App,
+  req: Request,
+  res: Response,
+  getPolicySettings: PolicySettingsProvider = () => DEFAULT_RESPONSE_POLICY_SETTINGS,
+): Promise<Response> {
   const { requestPath, normalizedPath } = resolveValidatedVaultPath(req);
   const acceptHeader = req.headers.accept || MIME_TYPE.JSON;
 
@@ -70,7 +93,7 @@ export async function handleVaultRead(app: App, req: Request, res: Response): Pr
     if (!fallbackFile) {
       throw Errors.notFound('File');
     }
-    return serveFile(app, fallbackFile, acceptHeader, res);
+    return serveFile(app, fallbackFile, req, acceptHeader, res, getPolicySettings);
   }
 
   if (file instanceof TFolder) {
@@ -78,7 +101,7 @@ export async function handleVaultRead(app: App, req: Request, res: Response): Pr
   }
 
   if (file instanceof TFile) {
-    return serveFile(app, file, acceptHeader, res);
+    return serveFile(app, file, req, acceptHeader, res, getPolicySettings);
   }
 
   throw Errors.notFound('Resource');

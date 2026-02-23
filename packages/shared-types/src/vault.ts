@@ -102,13 +102,13 @@ export interface FileMetadata {
   /** 파일 경로 */
   path: string;
   /** 태그 목록 */
-  tags: string[];
+  tags?: string[];
   /** 프론트매터 데이터 */
-  frontmatter: Record<string, unknown>;
+  frontmatter?: Record<string, unknown>;
   /** 아웃링크 목록 */
-  links: string[];
+  links?: string[];
   /** @deprecated graph.getBacklinks(path) 사용 권장 */
-  backlinks: string[];
+  backlinks?: string[];
 }
 
 /** 파일 + 메타데이터 통합 타입 */
@@ -116,13 +116,13 @@ export interface FileWithMetadata {
   /** 파일 경로 */
   path: string;
   /** 파일 내용 */
-  content: string;
+  content?: string;
   /** 프론트매터 데이터 */
-  frontmatter: Record<string, unknown>;
+  frontmatter?: Record<string, unknown>;
   /** 태그 목록 */
-  tags: string[];
+  tags?: string[];
   /** 파일 통계 정보 */
-  stat: {
+  stat?: {
     size: number;
     ctime: number;
     mtime: number;
@@ -142,15 +142,15 @@ export interface UnifiedMetadata {
   /** 파일 경로 */
   path: string;
   /** 프론트매터 데이터 */
-  frontmatter: Record<string, unknown>;
+  frontmatter?: Record<string, unknown>;
   /** 태그 목록 */
-  tags: string[];
+  tags?: string[];
   /** 아웃링크 목록 */
-  links: LinkInfo[];
+  links?: LinkInfo[];
   /** 백링크 목록 (실제 데이터) */
-  backlinks: string[];
+  backlinks?: string[];
   /** 파일 통계 정보 */
-  stat: {
+  stat?: {
     size: number;
     ctime: number;
     mtime: number;

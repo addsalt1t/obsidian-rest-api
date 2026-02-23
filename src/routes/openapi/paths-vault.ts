@@ -1,6 +1,7 @@
 import { API_VERSION } from '../../constants';
 import {
   createJsonResponse,
+  createFieldsQueryParameter,
   createMarkdownOrJsonRequestBody,
   createMarkdownRequestBody,
   createPatchOperationHeaderParameter,
@@ -54,6 +55,10 @@ export const vaultPaths = {
           },
           description: 'Response format (note+json includes metadata)',
         },
+        createFieldsQueryParameter(
+          ['content', 'frontmatter', 'tags', 'links', 'stat'],
+          'Used when Accept is application/vnd.olrapi.note+json',
+        ),
       ],
       responses: {
         '200': { description: 'File content or folder listing' },

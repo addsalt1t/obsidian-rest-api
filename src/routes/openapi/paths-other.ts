@@ -3,6 +3,7 @@
  */
 import {
   createJsonRefResponse,
+  createFieldsQueryParameter,
   createMarkdownOrJsonRequestBody,
   createMarkdownRequestBody,
   createPatchOperationHeaderParameter,
@@ -76,6 +77,21 @@ export const otherPaths = {
     get: {
       summary: 'Get active file',
       tags: ['active'],
+      parameters: [
+        {
+          name: 'Accept',
+          in: 'header',
+          schema: {
+            type: 'string',
+            enum: ['text/markdown', 'application/vnd.olrapi.note+json'],
+          },
+          description: 'Response format',
+        },
+        createFieldsQueryParameter(
+          ['content', 'frontmatter', 'tags', 'links', 'stat'],
+          'Used when Accept is application/vnd.olrapi.note+json',
+        ),
+      ],
       responses: {
         '200': { description: 'Active file content' },
         '404': { description: 'No active file' },
@@ -128,7 +144,21 @@ export const otherPaths = {
     get: {
       summary: 'Get periodic note',
       tags: ['periodic'],
-      parameters: createPeriodicParameters(),
+      parameters: createPeriodicParameters([
+        {
+          name: 'Accept',
+          in: 'header',
+          schema: {
+            type: 'string',
+            enum: ['text/markdown', 'application/vnd.olrapi.note+json'],
+          },
+          description: 'Response format',
+        },
+        createFieldsQueryParameter(
+          ['content', 'frontmatter', 'tags', 'links', 'stat'],
+          'Used when Accept is application/vnd.olrapi.note+json',
+        ),
+      ]),
       responses: {
         '200': { description: 'Periodic note content' },
         '404': { description: 'Note not found' },

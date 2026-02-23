@@ -11,6 +11,16 @@ import { parsePatchRequestParts } from '../utils/patch-request';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { waitForMetadataReady } from '../utils/metadata-ready';
 import { parsePeriodicRequest } from './periodic-context';
+import {
+  DEFAULT_RESPONSE_POLICY_SETTINGS,
+  resolveNoteJsonFields,
+} from '../security/response-policy';
+
+type PolicySettingsProvider = () => {
+  allowSensitiveFields: boolean;
+  sensitiveFieldAllowlist: string;
+  legacyFullResponseCompat: boolean;
+};
 
 interface PeriodicNotesPlugin {
   settings: {
@@ -22,7 +32,10 @@ interface PeriodicNotesPlugin {
   };
 }
 
-export function createPeriodicRouter(app: App): Router {
+export function createPeriodicRouter(
+  app: App,
+  getPolicySettings: PolicySettingsProvider = () => DEFAULT_RESPONSE_POLICY_SETTINGS,
+): Router {
   const router = Router();
   const momentFactory = moment as unknown as (input?: {
     year?: number;
@@ -105,9 +118,8 @@ export function createPeriodicRouter(app: App): Router {
       const content = await app.vault.read(file);
 
       if (acceptHeader.includes(MIME_TYPE.NOTE_JSON)) {
-        return res.json(buildNoteJsonResponse(app, file, content, {
-          excludeLinks: true,
-        }));
+        const includeFields = resolveNoteJsonFields(req, getPolicySettings());
+        return res.json(buildNoteJsonResponse(app, file, content, { includeFields }));
       }
 
       res.setHeader('Content-Type', 'text/markdown; charset=utf-8');

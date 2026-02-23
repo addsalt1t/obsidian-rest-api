@@ -219,15 +219,15 @@ export function createServer(
     // Register folder/move routers before vault router (more specific paths first)
     app.use('/vault/folder', createFolderRouter(obsidianApp));
     app.use('/vault', createMoveRenameRouter(obsidianApp));
-    app.use('/vault', createVaultRouter(obsidianApp));
-    app.use('/search', createSearchRouter(obsidianApp));
-    app.use('/active', createActiveRouter(obsidianApp));
-    app.use('/periodic', createPeriodicRouter(obsidianApp));
+    app.use('/vault', createVaultRouter(obsidianApp, getSettings));
+    app.use('/search', createSearchRouter(obsidianApp, getSettings));
+    app.use('/active', createActiveRouter(obsidianApp, getSettings));
+    app.use('/periodic', createPeriodicRouter(obsidianApp, getSettings));
     app.use('/commands', createCommandsRouter(obsidianApp));
     app.use('/open', createOpenRouter(obsidianApp));
     app.use('/graph', createGraphRouter(obsidianApp));
     app.use('/batch', createBatchRouter(obsidianApp));
-    app.use('/metadata', createMetadataRouter(obsidianApp));
+    app.use('/metadata', createMetadataRouter(obsidianApp, getSettings));
     app.use('/autolink', createAutolinkRouter(obsidianApp));
     app.use('/vector', createVectorRouter(obsidianApp));
 

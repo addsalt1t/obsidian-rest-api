@@ -1,7 +1,7 @@
 /**
  * Metadata-related OpenAPI path definitions
  */
-import { createJsonRefResponse } from './common';
+import { createFieldsQueryParameter, createJsonRefResponse } from './common';
 
 export const metadataPaths = {
   '/metadata/{path}': {
@@ -15,6 +15,7 @@ export const metadataPaths = {
           required: true,
           schema: { type: 'string' },
         },
+        createFieldsQueryParameter(['frontmatter', 'tags', 'links', 'backlinks', 'stat']),
       ],
       responses: {
         '200': createJsonRefResponse('Unified metadata', '#/components/schemas/UnifiedMetadata'),

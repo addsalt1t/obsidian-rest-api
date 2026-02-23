@@ -7,9 +7,9 @@ export interface RestSearchMatch {
   /** 매치 라인 번호 (1-based) */
   line: number;
   /** 매치 주변 컨텍스트 문자열 */
-  context: string;
+  context?: string;
   /** 컨텍스트 내 매치 위치 */
-  match: {
+  match?: {
     start: number;
     end: number;
   };

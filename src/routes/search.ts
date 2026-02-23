@@ -27,6 +27,16 @@ import { createLogger } from '../utils/logger';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { Errors } from '../middleware/error';
 import { toErrorMessage } from '../utils/errors';
+import {
+  DEFAULT_RESPONSE_POLICY_SETTINGS,
+  resolveSearchSimpleFields,
+} from '../security/response-policy';
+
+type PolicySettingsProvider = () => {
+  allowSensitiveFields: boolean;
+  sensitiveFieldAllowlist: string;
+  legacyFullResponseCompat: boolean;
+};
 
 const logger = createLogger('Search');
 
@@ -197,7 +207,10 @@ function searchFileForMatches(
   return { path: filePath, score, matches };
 }
 
-export function createSearchRouter(app: App): Router {
+export function createSearchRouter(
+  app: App,
+  getPolicySettings: PolicySettingsProvider = () => DEFAULT_RESPONSE_POLICY_SETTINGS,
+): Router {
   const router = Router();
   const fileCache = getFileListCache(app);
 
@@ -229,6 +242,9 @@ export function createSearchRouter(app: App): Router {
 
     const pagination = parsePagination(req.query as Record<string, unknown>);
     const scopePaths = resolveScopePaths(req.query as Record<string, unknown>, req.body);
+    const includeFields = resolveSearchSimpleFields(req, getPolicySettings());
+    const includeContext = includeFields.has('context');
+    const includeOffset = includeFields.has('offset');
     const files = filterFilesByScopes(fileCache.getMarkdownFiles(), scopePaths);
     const escapedQuery = escapeRegExp(query);
 
@@ -247,7 +263,17 @@ export function createSearchRouter(app: App): Router {
       .sort((a, b) => b.score - a.score);
 
     const { items, total } = applyPagination(results, pagination);
-    res.json({ results: items, total, limit: pagination.limit, offset: pagination.offset });
+    const shapedItems = items.map((result) => ({
+      path: result.path,
+      score: result.score,
+      matches: result.matches.map((match) => ({
+        line: match.line,
+        ...(includeContext && { context: match.context }),
+        ...(includeOffset && { match: match.match }),
+      })),
+    }));
+
+    res.json({ results: shapedItems, total, limit: pagination.limit, offset: pagination.offset });
     return;
   }));
 

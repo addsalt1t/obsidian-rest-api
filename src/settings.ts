@@ -45,6 +45,9 @@ export interface ExtendedRestApiSettings {
   apiKey: string;
   enableHttps: boolean;
   corsOrigins: string;
+  allowSensitiveFields: boolean;
+  sensitiveFieldAllowlist: string;
+  legacyFullResponseCompat: boolean;
 }
 
 export const DEFAULT_SETTINGS: ExtendedRestApiSettings = {
@@ -52,6 +55,9 @@ export const DEFAULT_SETTINGS: ExtendedRestApiSettings = {
   apiKey: '',
   enableHttps: true,
   corsOrigins: DEFAULT_CORS_ORIGINS.join(','),
+  allowSensitiveFields: false,
+  sensitiveFieldAllowlist: '',
+  legacyFullResponseCompat: false,
 };
 
 export class ExtendedRestApiSettingTab extends PluginSettingTab {
@@ -164,6 +170,37 @@ export class ExtendedRestApiSettingTab extends PluginSettingTab {
         .setValue(this.plugin.settings.corsOrigins)
         .onChange(async (value) => {
           this.plugin.settings.corsOrigins = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Allow sensitive response fields')
+      .setDesc('Enable opt-in response fields like content/frontmatter/context via query parameter fields')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.allowSensitiveFields)
+        .onChange(async (value) => {
+          this.plugin.settings.allowSensitiveFields = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Sensitive field allowlist')
+      .setDesc('Comma-separated fields allowed when sensitive responses are enabled (example: content,frontmatter,tags,links,stat,backlinks,context,offset)')
+      .addText(text => text
+        .setPlaceholder('content,frontmatter,tags,links,stat')
+        .setValue(this.plugin.settings.sensitiveFieldAllowlist)
+        .onChange(async (value) => {
+          this.plugin.settings.sensitiveFieldAllowlist = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Legacy full response compatibility')
+      .setDesc('Return full note+json/search metadata without fields parameter (insecure, emergency compatibility mode)')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.legacyFullResponseCompat)
+        .onChange(async (value) => {
+          this.plugin.settings.legacyFullResponseCompat = value;
           await this.plugin.saveSettings();
         }));
 

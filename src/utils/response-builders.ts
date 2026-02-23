@@ -19,6 +19,7 @@
 import { App, TFile } from 'obsidian';
 import { extractAllTags } from './content';
 import { parseMarkdownMetadata } from '../services/markdownParser';
+import type { MetadataField, NoteJsonField } from '../security/response-policy';
 
 /**
  * Field selection options for note+json responses
@@ -28,12 +29,19 @@ import { parseMarkdownMetadata } from '../services/markdownParser';
  * Use excludeLinks/excludeStat for periodic where links/stat are not needed.
  */
 export interface NoteJsonOptions {
+  /** 명시적 포함 필드 목록 (제공되면 exclude* 옵션보다 우선) */
+  includeFields?: ReadonlySet<NoteJsonField>;
   /** If true, exclude the content field (for batch/metadata) */
   excludeContent?: boolean;
   /** If true, exclude the links field */
   excludeLinks?: boolean;
   /** If true, exclude the stat field */
   excludeStat?: boolean;
+}
+
+export interface MetadataResponseOptions {
+  /** 명시적 포함 필드 목록 (제공되지 않으면 기존 동작처럼 모두 포함) */
+  includeFields?: ReadonlySet<MetadataField>;
 }
 
 /** Return a clean object with the position property removed from frontmatter */
@@ -140,8 +148,27 @@ export function buildNoteJsonResponse(
   content: string,
   options: NoteJsonOptions = {},
 ) {
-  const { frontmatter, tags } = extractMetadataFields(app, file, content);
-  const cache = app.metadataCache.getFileCache(file);
+  const includeContent = options.includeFields
+    ? options.includeFields.has('content')
+    : !options.excludeContent;
+  const includeFrontmatter = options.includeFields
+    ? options.includeFields.has('frontmatter')
+    : true;
+  const includeTags = options.includeFields
+    ? options.includeFields.has('tags')
+    : true;
+  const includeLinks = options.includeFields
+    ? options.includeFields.has('links')
+    : !options.excludeLinks;
+  const includeStat = options.includeFields
+    ? options.includeFields.has('stat')
+    : !options.excludeStat;
+
+  const needsMetadataFields = includeFrontmatter || includeTags;
+  const metadata = needsMetadataFields
+    ? extractMetadataFields(app, file, content)
+    : { frontmatter: {}, tags: [] as string[] };
+  const cache = includeLinks ? app.metadataCache.getFileCache(file) : undefined;
 
   // Base fields: path, name, frontmatter, tags
   const response: Record<string, unknown> = {
@@ -149,21 +176,26 @@ export function buildNoteJsonResponse(
     name: file.basename,
   };
 
-  if (!options.excludeContent) {
+  if (includeContent) {
     response.content = content;
   }
 
-  response.frontmatter = frontmatter;
-  response.tags = tags;
+  if (includeFrontmatter) {
+    response.frontmatter = metadata.frontmatter;
+  }
 
-  if (!options.excludeLinks) {
+  if (includeTags) {
+    response.tags = metadata.tags;
+  }
+
+  if (includeLinks) {
     response.links = cache?.links?.map(l => ({
       path: l.link,
       displayText: l.displayText,
     })) || [];
   }
 
-  if (!options.excludeStat) {
+  if (includeStat) {
     response.stat = {
       size: file.stat.size,
       ctime: file.stat.ctime,
@@ -197,24 +229,50 @@ export function buildMetadataResponse(
   file: TFile,
   normalizedPath: string,
   content: string,
+  options: MetadataResponseOptions = {},
 ) {
-  const { frontmatter, tags } = extractMetadataFields(app, file, content);
-  const cache = app.metadataCache.getFileCache(file);
+  const includeFrontmatter = options.includeFields
+    ? options.includeFields.has('frontmatter')
+    : true;
+  const includeTags = options.includeFields
+    ? options.includeFields.has('tags')
+    : true;
+  const includeLinks = options.includeFields
+    ? options.includeFields.has('links')
+    : true;
+  const includeStat = options.includeFields
+    ? options.includeFields.has('stat')
+    : true;
 
-  const links = (cache?.links || []).map(l => ({
-    path: l.link,
-    displayText: l.displayText,
-  }));
-
-  return {
+  const response: Record<string, unknown> = {
     path: normalizedPath,
-    frontmatter,
-    tags,
-    links,
-    stat: {
+  };
+
+  if (includeFrontmatter || includeTags) {
+    const metadata = extractMetadataFields(app, file, content);
+    if (includeFrontmatter) {
+      response.frontmatter = metadata.frontmatter;
+    }
+    if (includeTags) {
+      response.tags = metadata.tags;
+    }
+  }
+
+  if (includeLinks) {
+    const cache = app.metadataCache.getFileCache(file);
+    response.links = (cache?.links || []).map(l => ({
+      path: l.link,
+      displayText: l.displayText,
+    }));
+  }
+
+  if (includeStat) {
+    response.stat = {
       size: file.stat.size,
       ctime: file.stat.ctime,
       mtime: file.stat.mtime,
-    },
-  };
+    };
+  }
+
+  return response;
 }

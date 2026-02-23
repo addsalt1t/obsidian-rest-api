@@ -8,8 +8,21 @@ import { MIME_TYPE } from '../constants';
 import { parsePatchRequestParts } from '../utils/patch-request';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { waitForMetadataReady } from '../utils/metadata-ready';
+import {
+  DEFAULT_RESPONSE_POLICY_SETTINGS,
+  resolveNoteJsonFields,
+} from '../security/response-policy';
 
-export function createActiveRouter(app: App): Router {
+type PolicySettingsProvider = () => {
+  allowSensitiveFields: boolean;
+  sensitiveFieldAllowlist: string;
+  legacyFullResponseCompat: boolean;
+};
+
+export function createActiveRouter(
+  app: App,
+  getPolicySettings: PolicySettingsProvider = () => DEFAULT_RESPONSE_POLICY_SETTINGS,
+): Router {
   const router = Router();
 
   /**
@@ -36,7 +49,8 @@ export function createActiveRouter(app: App): Router {
       const content = await app.vault.read(file);
 
       if (acceptHeader.includes(MIME_TYPE.NOTE_JSON)) {
-        return res.json(buildNoteJsonResponse(app, file, content));
+        const includeFields = resolveNoteJsonFields(req, getPolicySettings());
+        return res.json(buildNoteJsonResponse(app, file, content, { includeFields }));
       }
 
       // text/markdown (default)
