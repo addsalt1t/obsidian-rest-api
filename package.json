@@ -10,6 +10,7 @@
     "dev": "node esbuild.config.mjs",
     "build": "npm run build:types && node esbuild.config.mjs production",
     "build:types": "npm run build -w @obsidian-workspace/shared-types",
+    "contract:export": "npm run build:types && node scripts/export-parity-contract.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:submission": "vitest run tests/unit/compliance/submission-requirements.test.ts",

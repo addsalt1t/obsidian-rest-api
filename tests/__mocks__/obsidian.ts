@@ -7,6 +7,53 @@ export function normalizePath(path: string): string {
     .replace(/^\/|\/$/g, '');
 }
 
+interface MockMomentInput {
+  year?: number;
+  month?: number;
+  day?: number;
+}
+
+function toIsoWeek(date: Date): number {
+  const utcDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const dayNum = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+  return Math.ceil((((utcDate.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
+function pad2(value: number): string {
+  return value.toString().padStart(2, '0');
+}
+
+export function moment(input?: MockMomentInput): { format: (format: string) => string } {
+  const date = input
+    ? new Date(Date.UTC(input.year ?? 1970, input.month ?? 0, input.day ?? 1))
+    : new Date();
+
+  return {
+    format(format: string): string {
+      const year = date.getUTCFullYear();
+      const month = date.getUTCMonth() + 1;
+      const day = date.getUTCDate();
+
+      switch (format) {
+        case 'YYYY-MM-DD':
+          return `${year}-${pad2(month)}-${pad2(day)}`;
+        case 'YYYY-[W]ww':
+          return `${year}-W${pad2(toIsoWeek(date))}`;
+        case 'YYYY-MM':
+          return `${year}-${pad2(month)}`;
+        case 'YYYY-[Q]Q':
+          return `${year}-Q${Math.ceil(month / 3)}`;
+        case 'YYYY':
+          return `${year}`;
+        default:
+          return `${year}-${pad2(month)}-${pad2(day)}`;
+      }
+    },
+  };
+}
+
 export type TAbstractFile = TFile | TFolder;
 
 export class TFile {

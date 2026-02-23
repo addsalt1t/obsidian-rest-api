@@ -133,9 +133,11 @@ describe('Commands Router', () => {
       expect(res.body.message).toBe('Command ID is required');
     });
 
-    it('should block dangerous commands', async () => {
+    it('should block dangerous commands without executing them', async () => {
+      const executeCommandById = vi.fn(() => true);
       const mockApp = createCommandsMockApp({
         commands: { 'app:delete-vault': { name: 'Delete Vault' } },
+        executeCommandById,
       });
       const app = createTestApp(mockApp);
 
@@ -144,6 +146,7 @@ describe('Commands Router', () => {
       expect(res.status).toBe(403);
       expect(res.body.error).toBe('FORBIDDEN');
       expect(res.body.message).toBe('This command is blocked for security reasons');
+      expect(executeCommandById).not.toHaveBeenCalled();
     });
 
     it('should handle trailing slash in command ID', async () => {

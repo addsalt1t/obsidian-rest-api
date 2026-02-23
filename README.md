@@ -124,6 +124,12 @@ Extended REST API includes all features of Local REST API plus additional capabi
 | Semantic search (Vector) | No | Yes |
 | Swagger UI | No | Yes |
 
+## Contract Sync for MCP
+
+- Export the REST↔MCP parity lock file with `npm run contract:export`.
+- Commit `contracts/parity-catalog.lock.json` when `PARITY_CATALOG` changes.
+- `tests/unit/parity/parity-lock.test.ts` fails if the lock file is missing or stale.
+
 ## License
 
 MIT License
