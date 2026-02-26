@@ -8,6 +8,7 @@ Extended REST API plugin for Obsidian (Express-based)
 npm test              # Unit tests
 npm run test:coverage # Coverage report
 npm run build         # Build
+npm run lint          # Lint
 ```
 
 ## Architecture

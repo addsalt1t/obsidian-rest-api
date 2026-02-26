@@ -18,7 +18,8 @@ const TYPE_DECLARATION_FILE_PATTERN = /\.d\.ts$/;
 // 의도적으로 export만 하는 파일 (타입 정의, 서비스 모듈 등)
 const EXPORT_ONLY_FILES: ExportOnlyRule[] = [
   { file: 'services/fileListCache.ts', reason: '파일 목록 캐시 서비스' },
-  { file: 'services/filePatching.ts', reason: '타입은 shared-types와 동기화용으로 export' },
+  { file: 'services/filePatching.ts', reason: 'Re-exports heading-patching + shared types/utilities' },
+  { file: 'services/heading-patching.ts', reason: 'Heading-based patching logic extracted from filePatching.ts' },
   { file: 'services/yaml-formatter.ts', reason: 'YAML formatting utilities extracted from filePatching.ts' },
   { file: 'services/tagCache.ts', reason: '이벤트 기반 태그 캐시 서비스' },
   { file: 'services/backlinkCache.ts', reason: '이벤트 기반 백링크 캐시 서비스' },

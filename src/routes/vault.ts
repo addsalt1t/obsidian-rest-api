@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { App, normalizePath } from 'obsidian';
+import { App, normalizePath, TAbstractFile } from 'obsidian';
 import { validatePath } from '../utils/path-validation';
 import { getFolderOrNull } from '../utils/file-helpers';
 import { HTTP_STATUS, ERROR_MSG } from '../constants';
@@ -105,6 +105,42 @@ export function createFolderRouter(app: App): Router {
   return router;
 }
 
+function extractMoveNewPath(req: Request): string {
+  const { newPath } = req.body;
+  if (!newPath || typeof newPath !== 'string') {
+    throw Errors.badRequest(ERROR_MSG.NEW_PATH_REQUIRED);
+  }
+  validatePath(newPath);
+  return normalizePath(newPath);
+}
+
+function extractRenameNewPath(req: Request, file: TAbstractFile): string {
+  const { newName } = req.body;
+  if (!newName || typeof newName !== 'string') {
+    throw Errors.badRequest('newName is required in request body');
+  }
+  validatePath(newName);
+  const parentPath = file.parent ? file.parent.path : '';
+  return normalizePath(parentPath ? `${parentPath}/${newName}` : newName);
+}
+
+async function performMoveRename(
+  app: App, req: Request, res: Response,
+  resolveNewPath: (req: Request, file: TAbstractFile) => string,
+  message: string,
+): Promise<void> {
+  const oldPath = getValidatedNormalizedPath(req);
+  const file = app.vault.getAbstractFileByPath(oldPath);
+  if (!file) throw Errors.notFound('File');
+
+  const normalizedNewPath = resolveNewPath(req, file);
+  if (app.vault.getAbstractFileByPath(normalizedNewPath)) throw Errors.conflict(ERROR_MSG.TARGET_EXISTS);
+
+  await app.fileManager.renameFile(file, normalizedNewPath);
+  await waitForMetadataReady(app, normalizedNewPath, { forceWait: true });
+  res.json({ message, oldPath, newPath: normalizedNewPath });
+}
+
 /**
  * File/folder move and rename router
  * POST /vault/{path}/move - Move (auto-updates links)
@@ -113,73 +149,12 @@ export function createFolderRouter(app: App): Router {
 export function createMoveRenameRouter(app: App): Router {
   const router = Router();
 
-  // POST /vault/{path}/move - Move file/folder
   router.post(/^\/(.+)\/move\/?$/, asyncHandler(async (req: Request, res: Response) => {
-      const oldPath = getValidatedNormalizedPath(req);
-
-      const { newPath } = req.body;
-      if (!newPath || typeof newPath !== 'string') {
-        throw Errors.badRequest(ERROR_MSG.NEW_PATH_REQUIRED);
-      }
-
-      // Path traversal validation (target path)
-      validatePath(newPath);
-
-      const normalizedNewPath = normalizePath(newPath);
-
-      const file = app.vault.getAbstractFileByPath(oldPath);
-      if (!file) {
-        throw Errors.notFound('File');
-      }
-
-      // Check if a file already exists at the target path
-      const targetExists = app.vault.getAbstractFileByPath(normalizedNewPath);
-      if (targetExists) {
-        throw Errors.conflict(ERROR_MSG.TARGET_EXISTS);
-      }
-
-      // fileManager.renameFile automatically updates links
-      await app.fileManager.renameFile(file, normalizedNewPath);
-      // Wait for metadataCache re-indexing (cache invalidation is auto-triggered by vault events)
-      await waitForMetadataReady(app, normalizedNewPath, { forceWait: true });
-      res.json({ message: 'Moved', oldPath, newPath: normalizedNewPath });
-      return;
+    await performMoveRename(app, req, res, extractMoveNewPath, 'Moved');
   }));
 
-  // POST /vault/{path}/rename - Rename file/folder
   router.post(/^\/(.+)\/rename\/?$/, asyncHandler(async (req: Request, res: Response) => {
-      const oldPath = getValidatedNormalizedPath(req);
-
-      const { newName } = req.body;
-      if (!newName || typeof newName !== 'string') {
-        throw Errors.badRequest('newName is required in request body');
-      }
-
-      // Path traversal validation (new name)
-      validatePath(newName);
-
-      const file = app.vault.getAbstractFileByPath(oldPath);
-      if (!file) {
-        throw Errors.notFound('File');
-      }
-
-      // Build new path from parent path + new name
-      const parentPath = file.parent ? file.parent.path : '';
-      const newPath = parentPath ? `${parentPath}/${newName}` : newName;
-      const normalizedNewPath = normalizePath(newPath);
-
-      // Check if a file already exists at the target path
-      const targetExists = app.vault.getAbstractFileByPath(normalizedNewPath);
-      if (targetExists) {
-        throw Errors.conflict(ERROR_MSG.TARGET_EXISTS);
-      }
-
-      // fileManager.renameFile automatically updates links
-      await app.fileManager.renameFile(file, normalizedNewPath);
-      // Wait for metadataCache re-indexing (cache invalidation is auto-triggered by vault events)
-      await waitForMetadataReady(app, normalizedNewPath, { forceWait: true });
-      res.json({ message: 'Renamed', oldPath, newPath: normalizedNewPath });
-      return;
+    await performMoveRename(app, req, res, extractRenameNewPath, 'Renamed');
   }));
 
   return router;

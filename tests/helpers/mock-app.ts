@@ -55,7 +55,6 @@ export function createMockApp(overrides?: Partial<AppMocks>): App {
     },
     metadataCache: {
       getFileCache: vi.fn().mockReturnValue(null),
-      getCache: vi.fn().mockReturnValue(null),
       getTags: vi.fn().mockReturnValue({}),
       resolvedLinks: {},
       ...overrides?.metadataCache,

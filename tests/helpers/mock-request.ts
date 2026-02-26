@@ -18,6 +18,9 @@ export type MockResponse = Response & {
   send: ReturnType<typeof vi.fn>;
   set: ReturnType<typeof vi.fn>;
   type: ReturnType<typeof vi.fn>;
+  end: ReturnType<typeof vi.fn>;
+  header: ReturnType<typeof vi.fn>;
+  setHeader: ReturnType<typeof vi.fn>;
 };
 
 /**

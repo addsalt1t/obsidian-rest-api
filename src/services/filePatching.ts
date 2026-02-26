@@ -1,40 +1,35 @@
 /**
  * File patching service
- * Unified patch logic for heading, line, and frontmatter key-based patches
+ * Line, block, and frontmatter key-based patches.
+ * Heading-based patching is in heading-patching.ts and re-exported here.
  */
 
-import type {
-  PatchOperation,
-  HeadingInfo,
-  HeadingResolveResult,
-} from '@obsidian-workspace/shared-types';
+import type { PatchOperation } from '@obsidian-workspace/shared-types';
 import { escapeRegExp } from '../utils/regex';
 import { formatYamlValue } from './yaml-formatter';
 
+// Re-export heading-patching module for backward compatibility
+export { resolveHeadingPath, patchByHeading } from './heading-patching';
+export type { HeadingInfo, HeadingResolveResult } from './heading-patching';
+
+// ---------------------------------------------------------------------------
+// Shared types & utilities (also consumed by heading-patching.ts)
+// ---------------------------------------------------------------------------
+
 type LineEnding = '\n' | '\r\n';
 
-interface ParsedHeading {
-  level: number;
-  text: string;
+interface PatchResult {
+  content: string;
+  found: boolean;
 }
 
-interface HeadingSectionRange {
-  start: number;
-  end: number;
+function normalizeOperation(operation: PatchOperation | string): PatchOperation {
+  return OPERATION_BY_NAME[operation] ?? 'replace';
 }
 
-interface HeadingSectionSlices {
-  beforeWithoutHeading: string[];
-  beforeWithHeading: string[];
-  sectionBody: string[];
-  after: string[];
-}
-
-interface HeadingPatchContext {
-  lines: string[];
-  range: HeadingSectionRange;
-  newContent: string;
-}
+// ---------------------------------------------------------------------------
+// Internal types
+// ---------------------------------------------------------------------------
 
 interface LinePatchContext {
   lines: string[];
@@ -49,14 +44,16 @@ interface BlockPatchContext {
   blockId: string;
 }
 
-type HeadingPatchHandler = (context: HeadingPatchContext) => string[];
 type LinePatchHandler = (context: LinePatchContext) => void;
 type BlockPatchHandler = (context: BlockPatchContext) => void;
+
+// ---------------------------------------------------------------------------
+// Constants & helpers
+// ---------------------------------------------------------------------------
 
 // Omits optional trailing newline `(?:\r?\n)?` intentionally:
 // patching operations need precise --- boundary without consuming trailing newline.
 const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---/;
-const HEADING_PATTERN = /^(#{1,6})\s+(.+)$/;
 const OPERATION_BY_NAME: Record<string, PatchOperation> = {
   append: 'append',
   prepend: 'prepend',
@@ -78,192 +75,9 @@ function isTopLevelYamlBoundary(line: string): boolean {
   return trimmed !== '' && !(/^\s/.test(line)) && TOP_LEVEL_YAML_KEY_OR_COMMENT.test(trimmed);
 }
 
-function parseHeadingLine(line: string): ParsedHeading | null {
-  const match = line.match(HEADING_PATTERN);
-  return (match && { level: match[1].length, text: match[2].trim() }) || null;
-}
-
-function trimHeadingStackByLevel(stack: ParsedHeading[], level: number): void {
-  while (stack.length > 0 && stack[stack.length - 1].level >= level) {
-    stack.pop();
-  }
-}
-
-function normalizeOperation(operation: PatchOperation | string): PatchOperation {
-  return OPERATION_BY_NAME[operation] ?? 'replace';
-}
-
-interface PatchResult {
-  content: string;
-  found: boolean;
-}
-
-export type { HeadingInfo, HeadingResolveResult };
-
-/**
- * Resolve full path by heading text
- * @param content - File content
- * @param headingText - Heading text to find (e.g., "Subsection")
- * @returns Resolution result (found headings and whether there are duplicates)
- */
-export function resolveHeadingPath(content: string, headingText: string): HeadingResolveResult {
-  const lines = content.split('\n');
-  const headingStack: ParsedHeading[] = [];
-  const foundHeadings: HeadingInfo[] = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const parsedHeading = parseHeadingLine(lines[i]);
-    if (!parsedHeading) {
-      continue;
-    }
-
-    trimHeadingStackByLevel(headingStack, parsedHeading.level);
-    headingStack.push(parsedHeading);
-
-    if (parsedHeading.text === headingText) {
-      foundHeadings.push({
-        level: parsedHeading.level,
-        text: parsedHeading.text,
-        fullPath: headingStack.map((h) => h.text).join('::'),
-        line: i,
-      });
-    }
-  }
-
-  if (foundHeadings.length === 0) {
-    return {
-      headings: [],
-      ambiguous: false,
-      error: `Heading '${headingText}' not found`,
-    };
-  }
-
-  return {
-    headings: foundHeadings,
-    ambiguous: foundHeadings.length > 1,
-  };
-}
-
-const HEADING_BOUNDARY_PATTERN = /^(#{1,6})(\s|$)/;
-
-function findHeadingSectionEnd(lines: string[], startLine: number, level: number): number {
-  for (let i = startLine; i < lines.length; i++) {
-    const match = lines[i].match(HEADING_BOUNDARY_PATTERN);
-    if (match && match[1].length <= level) {
-      return i;
-    }
-  }
-  return lines.length;
-}
-
-function findHeadingSectionByPath(lines: string[], headingPath: string[]): HeadingSectionRange | null {
-  let currentLevel = 0;
-  let targetStartIndex = -1;
-  let currentPathIndex = 0;
-
-  for (let i = 0; i < lines.length; i++) {
-    const heading = parseHeadingLine(lines[i]);
-    if (!heading) {
-      continue;
-    }
-
-    const pathMatched =
-      currentPathIndex < headingPath.length && heading.text === headingPath[currentPathIndex];
-    if (pathMatched) {
-      const isTarget = currentPathIndex === headingPath.length - 1;
-      currentPathIndex++;
-      if (!isTarget) {
-        continue;
-      }
-      targetStartIndex = i;
-      currentLevel = heading.level;
-      continue;
-    }
-
-    if (targetStartIndex !== -1 && heading.level <= currentLevel) {
-      return { start: targetStartIndex, end: i };
-    }
-  }
-
-  return targetStartIndex !== -1 ? { start: targetStartIndex, end: lines.length } : null;
-}
-
-function findHeadingSectionByTitle(lines: string[], title: string): HeadingSectionRange | null {
-  for (let i = 0; i < lines.length; i++) {
-    const heading = parseHeadingLine(lines[i]);
-    if (!heading || heading.text !== title) {
-      continue;
-    }
-    return {
-      start: i,
-      end: findHeadingSectionEnd(lines, i + 1, heading.level),
-    };
-  }
-  return null;
-}
-
-function resolveHeadingSection(lines: string[], headingPath: string[]): HeadingSectionRange | null {
-  return findHeadingSectionByPath(lines, headingPath)
-    ?? findHeadingSectionByTitle(lines, headingPath[headingPath.length - 1]);
-}
-
-function splitHeadingSection(lines: string[], range: HeadingSectionRange): HeadingSectionSlices {
-  return {
-    beforeWithoutHeading: lines.slice(0, range.start),
-    beforeWithHeading: lines.slice(0, range.start + 1),
-    sectionBody: lines.slice(range.start + 1, range.end),
-    after: lines.slice(range.end),
-  };
-}
-
-const HEADING_PATCH_HANDLERS: Record<PatchOperation, HeadingPatchHandler> = {
-  append: ({ lines, range, newContent }) => {
-    const section = splitHeadingSection(lines, range);
-    return [...section.beforeWithHeading, ...section.sectionBody, newContent, ...section.after];
-  },
-  prepend: ({ lines, range, newContent }) => {
-    const section = splitHeadingSection(lines, range);
-    return [...section.beforeWithHeading, newContent, ...section.sectionBody, ...section.after];
-  },
-  replace: ({ lines, range, newContent }) => {
-    const section = splitHeadingSection(lines, range);
-    return [...section.beforeWithHeading, newContent, ...section.after];
-  },
-  delete: ({ lines, range }) => {
-    const section = splitHeadingSection(lines, range);
-    return [...section.beforeWithoutHeading, ...section.after];
-  },
-};
-
-/**
- * Heading-based patch
- * @param content - Original file content
- * @param heading - Heading path (e.g., "Section::Subsection")
- * @param operation - Patch operation type
- * @param newContent - New content
- */
-export function patchByHeading(
-  content: string,
-  heading: string,
-  operation: PatchOperation | string,
-  newContent: string
-): PatchResult {
-  const lines = content.split('\n');
-  const headingPath = heading.split('::');
-  const sectionRange = resolveHeadingSection(lines, headingPath);
-
-  if (!sectionRange) {
-    return { content, found: false };
-  }
-
-  const resultLines = HEADING_PATCH_HANDLERS[normalizeOperation(operation)]({
-    lines,
-    range: sectionRange,
-    newContent,
-  });
-
-  return { content: resultLines.join('\n'), found: true };
-}
+// ---------------------------------------------------------------------------
+// Line-based patch
+// ---------------------------------------------------------------------------
 
 const LINE_PATCH_HANDLERS: Record<PatchOperation, LinePatchHandler> = {
   append: ({ lines, index, newContent }) => {
@@ -305,6 +119,10 @@ export function patchByLine(
 
   return { content: resultLines.join('\n'), found: true };
 }
+
+// ---------------------------------------------------------------------------
+// Block ID-based patch
+// ---------------------------------------------------------------------------
 
 function blockIdSuffix(line: string, blockId: string): string {
   return line.match(/(\s*\^[\w-]+\s*)$/)?.[1] ?? ` ^${blockId}`;
@@ -363,6 +181,10 @@ export function patchByBlock(
 
   return { content: resultLines.join('\n'), found: true };
 }
+
+// ---------------------------------------------------------------------------
+// Frontmatter key patch
+// ---------------------------------------------------------------------------
 
 function parseFrontmatterValue(value: string): unknown {
   try {

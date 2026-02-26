@@ -2,8 +2,8 @@ import express, { Router } from 'express';
 import { errorHandler } from '../../src/middleware/error';
 
 /**
- * 라우트 테스트용 Express 앱 팩토리
- * 라우터를 마운트하고 에러 핸들러를 설정한다.
+ * Express app factory for route testing.
+ * Mounts the given router and attaches the error handler.
  *
  * @example
  * const testApp = createRouterTestApp(createVaultRouter(mockApp), '/vault');
