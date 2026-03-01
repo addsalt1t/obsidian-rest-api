@@ -122,6 +122,7 @@ export const searchPaths = {
                     properties: {
                       type: { type: 'string', enum: ['table', 'list', 'task'] },
                       results: { type: 'array' },
+                      headers: { type: 'array', items: { type: 'string' }, description: 'Column headers (TABLE only)' },
                       truncated: { type: 'boolean' },
                       totalCount: { type: 'integer' },
                       limit: { type: 'integer' },
@@ -348,7 +349,7 @@ export const searchPaths = {
       responses: {
         '200': createJsonResponse('Query result', {
           type: { type: 'string', enum: ['table', 'list', 'task'] },
-          values: { type: 'array' },
+          results: { type: 'array' },
           headers: { type: 'array', items: { type: 'string' }, description: 'Column headers (TABLE only)' },
           truncated: { type: 'boolean' },
           totalCount: { type: 'integer' },

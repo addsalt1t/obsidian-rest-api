@@ -76,13 +76,10 @@ function createDataviewHandler(app: App, expectedType: string | null) {
 
         const response: Record<string, unknown> = {
           type: result.value.type,
-          values: limitedValues,
+          results: limitedValues,
+          ...(result.value.headers && { headers: result.value.headers }),
           ...(truncated && { truncated: true, totalCount: values.length, limit: DATAVIEW_MAX_RESULTS }),
         };
-        // Include headers for TABLE queries
-        if (result.value.headers) {
-          response.headers = result.value.headers;
-        }
         res.json(response);
       } else {
         logger.warn('Dataview query failed', result.error);

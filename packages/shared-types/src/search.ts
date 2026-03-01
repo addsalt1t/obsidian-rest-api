@@ -51,6 +51,8 @@ export interface DataviewResult {
   type: 'table' | 'list' | 'task';
   /** 쿼리 결과 데이터 */
   results: unknown[];
+  /** 컬럼 헤더 (TABLE 쿼리 전용) */
+  headers?: string[];
   /** 결과가 제한되었는지 여부 (1000행 초과 시 true) */
   truncated?: boolean;
   /** 제한 전 전체 결과 수 */

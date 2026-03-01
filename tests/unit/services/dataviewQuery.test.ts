@@ -131,6 +131,32 @@ describe('executeDataviewQuery', () => {
       expect(result.truncated).toBeUndefined();
     });
 
+    it('should include headers for TABLE queries', async () => {
+      const queryFn = vi.fn().mockResolvedValue({
+        successful: true,
+        value: { type: 'table', values: [['a', 1]], headers: ['Name', 'Value'] },
+      });
+      const app = createDataviewAppWithQuery(queryFn);
+
+      const result = await executeDataviewQuery(app, 'TABLE file.name, file.size');
+
+      expect(result.type).toBe('table');
+      expect(result.headers).toEqual(['Name', 'Value']);
+      expect(result.results).toEqual([['a', 1]]);
+    });
+
+    it('should omit headers when not present', async () => {
+      const queryFn = vi.fn().mockResolvedValue({
+        successful: true,
+        value: { type: 'list', values: ['item1'] },
+      });
+      const app = createDataviewAppWithQuery(queryFn);
+
+      const result = await executeDataviewQuery(app, 'LIST FROM #tag');
+
+      expect(result.headers).toBeUndefined();
+    });
+
     it('should handle missing values (undefined)', async () => {
       const queryFn = vi.fn().mockResolvedValue({
         successful: true,

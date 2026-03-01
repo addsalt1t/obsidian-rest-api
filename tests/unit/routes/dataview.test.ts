@@ -46,7 +46,7 @@ describe('Dataview Router', () => {
         .send({ query: 'LIST FROM "/"' });
 
       expect(res.status).toBe(200);
-      expect(res.body.values).toHaveLength(10);
+      expect(res.body.results).toHaveLength(10);
       expect(res.body.truncated).toBeUndefined();
       expect(res.body.totalCount).toBeUndefined();
       expect(res.body.limit).toBeUndefined();
@@ -64,7 +64,7 @@ describe('Dataview Router', () => {
         .send({ query: 'LIST FROM "/"' });
 
       expect(res.status).toBe(200);
-      expect(res.body.values).toHaveLength(DATAVIEW_MAX_RESULTS);
+      expect(res.body.results).toHaveLength(DATAVIEW_MAX_RESULTS);
       expect(res.body.truncated).toBeUndefined();
       expect(res.body.totalCount).toBeUndefined();
       expect(res.body.limit).toBeUndefined();
@@ -83,7 +83,7 @@ describe('Dataview Router', () => {
         .send({ query: 'LIST FROM "/"' });
 
       expect(res.status).toBe(200);
-      expect(res.body.values).toHaveLength(DATAVIEW_MAX_RESULTS);
+      expect(res.body.results).toHaveLength(DATAVIEW_MAX_RESULTS);
       expect(res.body.truncated).toBe(true);
       expect(res.body.totalCount).toBe(totalCount);
       expect(res.body.limit).toBe(DATAVIEW_MAX_RESULTS);
@@ -103,7 +103,7 @@ describe('Dataview Router', () => {
         .send({ query: 'TABLE Name, Value FROM "/"' });
 
       expect(res.status).toBe(200);
-      expect(res.body.values).toHaveLength(DATAVIEW_MAX_RESULTS);
+      expect(res.body.results).toHaveLength(DATAVIEW_MAX_RESULTS);
       expect(res.body.headers).toEqual(headers);
       expect(res.body.truncated).toBe(true);
       expect(res.body.totalCount).toBe(totalCount);
@@ -120,7 +120,7 @@ describe('Dataview Router', () => {
         .send({ query: 'LIST FROM "/"' });
 
       expect(res.status).toBe(200);
-      expect(res.body.values).toHaveLength(0);
+      expect(res.body.results).toHaveLength(0);
       expect(res.body.truncated).toBeUndefined();
     });
 
@@ -135,7 +135,7 @@ describe('Dataview Router', () => {
         .send({ query: 'LIST FROM "/"' });
 
       expect(res.status).toBe(200);
-      expect(res.body.values).toHaveLength(0);
+      expect(res.body.results).toHaveLength(0);
       expect(res.body.truncated).toBeUndefined();
     });
   });

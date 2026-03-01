@@ -16,6 +16,7 @@ function parseDqlBody(body: unknown): string | undefined {
 export interface DataviewQueryResult {
   type: string;
   results: unknown[];
+  headers?: string[];
   truncated?: true;
   totalCount?: number;
   limit?: number;
@@ -59,6 +60,7 @@ export async function executeDataviewQuery(app: App, body: unknown): Promise<Dat
     return {
       type: result.value.type,
       results: values.slice(0, DATAVIEW_MAX_RESULTS),
+      ...(result.value.headers && { headers: result.value.headers as string[] }),
       ...(truncated && { truncated: true as const, totalCount: values.length, limit: DATAVIEW_MAX_RESULTS }),
     };
   } catch (e) {
