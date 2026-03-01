@@ -6,11 +6,13 @@ export type NoteJsonField = 'content' | 'frontmatter' | 'tags' | 'links' | 'stat
 export type MetadataField = 'frontmatter' | 'tags' | 'links' | 'backlinks' | 'stat';
 type SearchSimpleField = 'context' | 'offset';
 
-interface ResponsePolicySettings {
+export interface ResponsePolicySettings {
   allowSensitiveFields: boolean;
   sensitiveFieldAllowlist: string;
   legacyFullResponseCompat: boolean;
 }
+
+export type PolicySettingsProvider = () => ResponsePolicySettings;
 
 const NOTE_JSON_FIELDS: readonly NoteJsonField[] = ['content', 'frontmatter', 'tags', 'links', 'stat'];
 const METADATA_FIELDS: readonly MetadataField[] = ['frontmatter', 'tags', 'links', 'backlinks', 'stat'];

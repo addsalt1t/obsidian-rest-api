@@ -12,13 +12,8 @@ import { handleVaultPatch } from './vault/handlers/patch';
 import { extractRequestPath } from './vault/utils';
 import {
   DEFAULT_RESPONSE_POLICY_SETTINGS,
+  type PolicySettingsProvider,
 } from '../security/response-policy';
-
-type PolicySettingsProvider = () => {
-  allowSensitiveFields: boolean;
-  sensitiveFieldAllowlist: string;
-  legacyFullResponseCompat: boolean;
-};
 
 function getValidatedNormalizedPath(req: Request): string {
   const requestPath = extractRequestPath(req);

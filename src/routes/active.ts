@@ -11,13 +11,8 @@ import { waitForMetadataReady } from '../utils/metadata-ready';
 import {
   DEFAULT_RESPONSE_POLICY_SETTINGS,
   resolveNoteJsonFields,
+  type PolicySettingsProvider,
 } from '../security/response-policy';
-
-type PolicySettingsProvider = () => {
-  allowSensitiveFields: boolean;
-  sensitiveFieldAllowlist: string;
-  legacyFullResponseCompat: boolean;
-};
 
 export function createActiveRouter(
   app: App,

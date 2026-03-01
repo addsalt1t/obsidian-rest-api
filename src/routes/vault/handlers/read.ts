@@ -7,6 +7,7 @@ import { Errors } from '../../../middleware/error';
 import {
   DEFAULT_RESPONSE_POLICY_SETTINGS,
   resolveNoteJsonFields,
+  type PolicySettingsProvider,
 } from '../../../security/response-policy';
 import {
   MIME_TYPE,
@@ -16,12 +17,6 @@ import {
 } from '../../../constants';
 import { buildFolderTree, listFolderChildren } from '../tree';
 import { resolveValidatedVaultPath } from '../utils';
-
-type PolicySettingsProvider = () => {
-  allowSensitiveFields: boolean;
-  sensitiveFieldAllowlist: string;
-  legacyFullResponseCompat: boolean;
-};
 
 function parseFolderViewOptions(req: Request): { recursive: boolean; maxDepth: number } {
   const recursive = req.query.recursive === 'true';

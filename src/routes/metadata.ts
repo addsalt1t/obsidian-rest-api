@@ -11,13 +11,8 @@ import {
   DEFAULT_RESPONSE_POLICY_SETTINGS,
   resolveMetadataFields,
   type MetadataField,
+  type PolicySettingsProvider,
 } from '../security/response-policy';
-
-type PolicySettingsProvider = () => {
-  allowSensitiveFields: boolean;
-  sensitiveFieldAllowlist: string;
-  legacyFullResponseCompat: boolean;
-};
 
 /**
  * Unified metadata router

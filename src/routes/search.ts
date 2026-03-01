@@ -30,13 +30,8 @@ import { toErrorMessage } from '../utils/errors';
 import {
   DEFAULT_RESPONSE_POLICY_SETTINGS,
   resolveSearchSimpleFields,
+  type PolicySettingsProvider,
 } from '../security/response-policy';
-
-type PolicySettingsProvider = () => {
-  allowSensitiveFields: boolean;
-  sensitiveFieldAllowlist: string;
-  legacyFullResponseCompat: boolean;
-};
 
 const logger = createLogger('Search');
 
@@ -117,9 +112,25 @@ function applyPagination<T>(items: T[], pagination: PaginationParams): { items: 
   };
 }
 
-/** Count newlines before `index` to determine 1-based line number. */
-function getLineNumberAt(content: string, index: number): number {
-  return content.substring(0, index).split('\n').length;
+/** Build an array of byte offsets for each newline in `content`. */
+function buildLineIndex(content: string): number[] {
+  const offsets: number[] = [];
+  for (let i = 0; i < content.length; i++) {
+    if (content.charCodeAt(i) === 10) offsets.push(i);
+  }
+  return offsets;
+}
+
+/** Determine 1-based line number via binary search on the line index. */
+function getLineNumberAt(lineIndex: number[], index: number): number {
+  let lo = 0;
+  let hi = lineIndex.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (lineIndex[mid] < index) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo + 1;
 }
 
 /**
@@ -185,6 +196,7 @@ function searchFileForMatches(
 ): RestSearchResult | null {
   searchRegex.lastIndex = 0;
   const matches: RestSearchMatch[] = [];
+  const lineIndex = buildLineIndex(content);
   let regexMatch: RegExpExecArray | null;
 
   while ((regexMatch = searchRegex.exec(content)) !== null) {
@@ -194,7 +206,7 @@ function searchFileForMatches(
     const contextEnd = Math.min(content.length, index + matchLength + SEARCH_CONTEXT_CHARS);
 
     matches.push({
-      line: getLineNumberAt(content, index),
+      line: getLineNumberAt(lineIndex, index),
       context: content.slice(contextStart, contextEnd),
       match: { start: index - contextStart, end: index - contextStart + matchLength },
     });

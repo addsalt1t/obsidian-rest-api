@@ -142,6 +142,40 @@ function parseImportSymbols(clause: string): string[] {
   return ['default'];
 }
 
+type PathResolver = (dir: string, modulePath: string) => string | null;
+
+function processImportFromStatements(
+  content: string,
+  dir: string,
+  srcDir: string,
+  resolvePath: PathResolver,
+  options?: { skipTypeOnly?: boolean }
+): Map<string, string[]> {
+  const imports = new Map<string, string[]>();
+  const importFromRegex = /import\s+([^'";]+?)\s+from\s+['"]([^'"]+)['"]/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = importFromRegex.exec(content)) !== null) {
+    const clause = match[1] || '';
+    const modulePath = match[2] || '';
+    const trimmedClause = clause.trim();
+
+    if (options?.skipTypeOnly && trimmedClause.startsWith('type ')) {
+      continue;
+    }
+
+    const actualPath = resolvePath(dir, modulePath);
+    if (!actualPath) {
+      continue;
+    }
+
+    const relativePath = normalizeRelative(srcDir, actualPath);
+    addImport(imports, relativePath, parseImportSymbols(clause));
+  }
+
+  return imports;
+}
+
 interface ExtractImportOptions {
   includeTypeOnly: boolean;
 }
@@ -152,33 +186,24 @@ function extractImports(
   options: ExtractImportOptions
 ): Map<string, string[]> {
   const content = fs.readFileSync(filePath, 'utf-8');
-  const imports = new Map<string, string[]>();
   const dir = path.dirname(filePath);
 
-  const importFromRegex = /import\s+([^'";]+?)\s+from\s+['"]([^'"]+)['"]/g;
-  let match: RegExpExecArray | null;
-
-  while ((match = importFromRegex.exec(content)) !== null) {
-    const clause = match[1] || '';
-    const modulePath = match[2] || '';
-    const trimmedClause = clause.trim();
-
+  const srcResolvePath: PathResolver = (d, modulePath) => {
     if (!modulePath.startsWith('.')) {
-      continue;
+      return null;
     }
+    return resolveModulePath(d, modulePath);
+  };
 
-    if (!options.includeTypeOnly && trimmedClause.startsWith('type ')) {
-      continue;
-    }
+  const imports = processImportFromStatements(
+    content,
+    dir,
+    srcDir,
+    srcResolvePath,
+    { skipTypeOnly: !options.includeTypeOnly }
+  );
 
-    const actualPath = resolveModulePath(dir, modulePath);
-    if (!actualPath) {
-      continue;
-    }
-
-    const relativePath = normalizeRelative(srcDir, actualPath);
-    addImport(imports, relativePath, parseImportSymbols(clause));
-  }
+  let match: RegExpExecArray | null;
 
   // side-effect import: import './module'
   const sideEffectRegex = /import\s+['"]([^'"]+)['"]/g;
@@ -279,47 +304,44 @@ function extractTestImports(testsDir: string, srcDir: string): Map<string, strin
   const testFiles = getAllTsFiles(testsDir);
   const testImports: Map<string, string[]>[] = [];
 
+  const testResolvePath: PathResolver = (dir, modulePath) => {
+    if (modulePath.startsWith('.')) {
+      const resolved = resolveModulePath(dir, modulePath);
+      if (resolved && (resolved === srcDir || resolved.startsWith(`${srcDir}${path.sep}`))) {
+        return resolved;
+      }
+      return null;
+    }
+
+    if (modulePath.includes('/src/')) {
+      const srcMatch = modulePath.match(/\/src\/(.+)$/);
+      if (srcMatch) {
+        let relativePath = srcMatch[1];
+        relativePath = relativePath.replace(/\.js$/, '');
+        if (!relativePath.endsWith('.ts')) {
+          relativePath = `${relativePath}.ts`;
+        }
+
+        const fullPath = path.join(srcDir, relativePath);
+        if (fs.existsSync(fullPath)) {
+          return fullPath;
+        }
+      }
+    }
+
+    return null;
+  };
+
   for (const testFile of testFiles) {
     const content = fs.readFileSync(testFile, 'utf-8');
-    const imports = new Map<string, string[]>();
     const dir = path.dirname(testFile);
 
-    const importFromRegex = /import\s+([^'";]+?)\s+from\s+['"]([^'"]+)['"]/g;
-    let match: RegExpExecArray | null;
-
-    while ((match = importFromRegex.exec(content)) !== null) {
-      const clause = match[1] || '';
-      const modulePath = match[2] || '';
-
-      let actualPath: string | null = null;
-      if (modulePath.startsWith('.')) {
-        const resolved = resolveModulePath(dir, modulePath);
-        if (resolved && (resolved === srcDir || resolved.startsWith(`${srcDir}${path.sep}`))) {
-          actualPath = resolved;
-        }
-      } else if (modulePath.includes('/src/')) {
-        const srcMatch = modulePath.match(/\/src\/(.+)$/);
-        if (srcMatch) {
-          let relativePath = srcMatch[1];
-          relativePath = relativePath.replace(/\.js$/, '');
-          if (!relativePath.endsWith('.ts')) {
-            relativePath = `${relativePath}.ts`;
-          }
-
-          const fullPath = path.join(srcDir, relativePath);
-          if (fs.existsSync(fullPath)) {
-            actualPath = fullPath;
-          }
-        }
-      }
-
-      if (!actualPath) {
-        continue;
-      }
-
-      const relativePath = normalizeRelative(srcDir, actualPath);
-      addImport(imports, relativePath, parseImportSymbols(clause));
-    }
+    const imports = processImportFromStatements(
+      content,
+      dir,
+      srcDir,
+      testResolvePath
+    );
 
     testImports.push(imports);
   }

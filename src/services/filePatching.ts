@@ -7,29 +7,17 @@
 import type { PatchOperation } from '@obsidian-workspace/shared-types';
 import { escapeRegExp } from '../utils/regex';
 import { formatYamlValue } from './yaml-formatter';
+import { normalizeOperation, type PatchResult } from './patch-constants';
 
 // Re-export heading-patching module for backward compatibility
 export { resolveHeadingPath, patchByHeading } from './heading-patching';
 export type { HeadingInfo, HeadingResolveResult } from './heading-patching';
 
 // ---------------------------------------------------------------------------
-// Shared types & utilities (also consumed by heading-patching.ts)
+// Internal types
 // ---------------------------------------------------------------------------
 
 type LineEnding = '\n' | '\r\n';
-
-interface PatchResult {
-  content: string;
-  found: boolean;
-}
-
-function normalizeOperation(operation: PatchOperation | string): PatchOperation {
-  return OPERATION_BY_NAME[operation] ?? 'replace';
-}
-
-// ---------------------------------------------------------------------------
-// Internal types
-// ---------------------------------------------------------------------------
 
 interface LinePatchContext {
   lines: string[];
@@ -54,12 +42,6 @@ type BlockPatchHandler = (context: BlockPatchContext) => void;
 // Omits optional trailing newline `(?:\r?\n)?` intentionally:
 // patching operations need precise --- boundary without consuming trailing newline.
 const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---/;
-const OPERATION_BY_NAME: Record<string, PatchOperation> = {
-  append: 'append',
-  prepend: 'prepend',
-  replace: 'replace',
-  delete: 'delete',
-};
 
 function detectLineEnding(content: string): LineEnding {
   return content.includes('\r\n') ? '\r\n' : '\n';

@@ -8,6 +8,7 @@ import type {
   HeadingInfo,
   HeadingResolveResult,
 } from '@obsidian-workspace/shared-types';
+import { normalizeOperation, type PatchResult } from './patch-constants';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -37,26 +38,6 @@ interface HeadingPatchContext {
 }
 
 type HeadingPatchHandler = (context: HeadingPatchContext) => string[];
-
-// ---------------------------------------------------------------------------
-// Shared utilities (local copies to avoid circular dependency with filePatching)
-// ---------------------------------------------------------------------------
-
-interface PatchResult {
-  content: string;
-  found: boolean;
-}
-
-const OPERATION_BY_NAME: Record<string, PatchOperation> = {
-  append: 'append',
-  prepend: 'prepend',
-  replace: 'replace',
-  delete: 'delete',
-};
-
-function normalizeOperation(operation: PatchOperation | string): PatchOperation {
-  return OPERATION_BY_NAME[operation] ?? 'replace';
-}
 
 // ---------------------------------------------------------------------------
 // Constants & helpers

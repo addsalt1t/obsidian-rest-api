@@ -14,13 +14,8 @@ import { parsePeriodicRequest } from './periodic-context';
 import {
   DEFAULT_RESPONSE_POLICY_SETTINGS,
   resolveNoteJsonFields,
+  type PolicySettingsProvider,
 } from '../security/response-policy';
-
-type PolicySettingsProvider = () => {
-  allowSensitiveFields: boolean;
-  sensitiveFieldAllowlist: string;
-  legacyFullResponseCompat: boolean;
-};
 
 interface PeriodicNotesPlugin {
   settings: {
