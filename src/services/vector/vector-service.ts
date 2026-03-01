@@ -133,7 +133,7 @@ export async function embed(
       setToEmbeddingCache(result.file.path, {
         path: result.file.path,
         mtime: result.file.stat.mtime,
-        vector: [],
+        vector: new Map<string, number>(),
         tokens: result.tokens,
       });
       processed++;
@@ -152,7 +152,7 @@ export async function embed(
  * Returns results sorted by descending similarity score.
  */
 function computeScoredCandidates(
-  queryVector: number[],
+  queryVector: Map<string, number>,
   scopedPathSet: Set<string> | null,
   threshold: number,
 ): Array<{ path: string; score: number }> {

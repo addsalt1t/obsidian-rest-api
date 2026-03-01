@@ -31,9 +31,11 @@ import {
   scan,
   linkify,
 } from '../../../src/services/autolink/autolink-service';
+import { runLinkifyEngine } from '../../../src/services/autolink/scan-engine';
 import { getFileListCache } from '../../../src/services/fileListCache';
 import { createMockTFile, createMockCachedMetadata } from '../../helpers/fixtures';
 import type { App } from 'obsidian';
+import type { NameEntry } from '../../../src/services/autolink/types';
 
 describe('Autolink Service', () => {
   beforeEach(() => {
@@ -823,6 +825,169 @@ describe('Autolink Service', () => {
       expect(result.filesModified).toBe(0);
       expect(result.totalChanges).toBe(0);
       expect(result.skipped).toBe(0);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // runLinkifyEngine — multi-entity same-line (collect-sort-apply)
+  // ---------------------------------------------------------------------------
+
+  describe('runLinkifyEngine multi-entity same-line', () => {
+    /**
+     * Helper to build sortedNames and patternMap from a list of entities,
+     * sorted by name length descending (same as matcher.ts buildSortedNames).
+     */
+    function prepareEntities(
+      entities: Array<{ name: string; path: string; aliases?: string[] }>
+    ): { sortedNames: NameEntry[]; patternMap: Map<string, RegExp> } {
+      const sortedNames: NameEntry[] = [];
+      for (const e of entities) {
+        const entity = { name: e.name, path: e.path, aliases: e.aliases ?? [] };
+        sortedNames.push({ name: entity.name, entity });
+        for (const alias of entity.aliases) {
+          sortedNames.push({ name: alias, entity });
+        }
+      }
+      sortedNames.sort((a, b) => b.name.length - a.name.length);
+
+      const patternMap = new Map<string, RegExp>();
+      for (const { name } of sortedNames) {
+        if (!patternMap.has(name)) {
+          patternMap.set(name, buildEntityPattern(name));
+        }
+      }
+      return { sortedNames, patternMap };
+    }
+
+    it('should linkify both Hero and Villain on the same line', () => {
+      const { sortedNames, patternMap } = prepareEntities([
+        { name: 'Hero', path: 'entities/hero.md' },
+        { name: 'Villain', path: 'entities/villain.md' },
+      ]);
+
+      const result = runLinkifyEngine({
+        filePath: 'stories/chapter1.md',
+        lines: ['Hero met Villain today'],
+        sortedNames,
+        patternMap,
+        dryRun: false,
+        autoConfirm: true,
+      });
+
+      expect(result.updatedLines[0]).toBe('[[Hero]] met [[Villain]] today');
+      expect(result.fileChanges).toHaveLength(2);
+      expect(result.fileModified).toBe(true);
+      expect(result.fileSkipped).toBe(0);
+    });
+
+    it('should prefer longer match when entity names overlap (Heroic vs Hero)', () => {
+      const { sortedNames, patternMap } = prepareEntities([
+        { name: 'Heroic', path: 'entities/heroic.md' },
+        { name: 'Hero', path: 'entities/hero.md' },
+      ]);
+
+      const result = runLinkifyEngine({
+        filePath: 'stories/chapter1.md',
+        lines: ['Heroic deed by the Hero'],
+        sortedNames,
+        patternMap,
+        dryRun: false,
+        autoConfirm: true,
+      });
+
+      // "Heroic" should match the longer entity; "Hero" should match separately
+      expect(result.updatedLines[0]).toBe('[[Heroic]] deed by the [[Hero]]');
+      expect(result.fileChanges).toHaveLength(2);
+    });
+
+    it('should not corrupt output when replacement lengths differ', () => {
+      // "Al" -> "[[Albert]]" is much longer; "Bob" -> "[[Bob]]" is slightly longer
+      // With offset-based approach, the second replacement could drift.
+      // With collect-sort-apply (right-to-left), both should be correct.
+      const { sortedNames, patternMap } = prepareEntities([
+        { name: 'Albert', path: 'entities/albert.md', aliases: ['Al'] },
+        { name: 'Bob', path: 'entities/bob.md' },
+      ]);
+
+      const result = runLinkifyEngine({
+        filePath: 'stories/chapter1.md',
+        lines: ['Al and Bob went out'],
+        sortedNames,
+        patternMap,
+        dryRun: false,
+        autoConfirm: true,
+      });
+
+      expect(result.updatedLines[0]).toBe('[[Albert|Al]] and [[Bob]] went out');
+      expect(result.fileChanges).toHaveLength(2);
+      expect(result.fileModified).toBe(true);
+    });
+
+    it('should produce correct dry-run output without modifying lines', () => {
+      const { sortedNames, patternMap } = prepareEntities([
+        { name: 'Hero', path: 'entities/hero.md' },
+        { name: 'Villain', path: 'entities/villain.md' },
+      ]);
+
+      const result = runLinkifyEngine({
+        filePath: 'stories/chapter1.md',
+        lines: ['Hero met Villain today'],
+        sortedNames,
+        patternMap,
+        dryRun: true,
+        autoConfirm: true,
+      });
+
+      // Lines should remain unchanged in dry run
+      expect(result.updatedLines[0]).toBe('Hero met Villain today');
+      expect(result.fileChanges).toHaveLength(2);
+      expect(result.fileChanges.every(c => !c.applied)).toBe(true);
+      expect(result.fileModified).toBe(false);
+    });
+
+    it('should handle three entities on one line with varying replacement sizes', () => {
+      const { sortedNames, patternMap } = prepareEntities([
+        { name: 'Alice', path: 'entities/alice.md' },
+        { name: 'Bob', path: 'entities/bob.md' },
+        { name: 'Charlie', path: 'entities/charlie.md' },
+      ]);
+
+      const result = runLinkifyEngine({
+        filePath: 'stories/chapter1.md',
+        lines: ['Alice, Bob, and Charlie arrived'],
+        sortedNames,
+        patternMap,
+        dryRun: false,
+        autoConfirm: true,
+      });
+
+      expect(result.updatedLines[0]).toBe(
+        '[[Alice]], [[Bob]], and [[Charlie]] arrived'
+      );
+      expect(result.fileChanges).toHaveLength(3);
+    });
+
+    it('should prevent cross-entity overlap when one match is a substring of another', () => {
+      // "Hero" appears inside "SuperHero" text, but since sortedNames is sorted
+      // by length desc, "SuperHero" should match first and claim those positions.
+      const { sortedNames, patternMap } = prepareEntities([
+        { name: 'SuperHero', path: 'entities/superhero.md' },
+        { name: 'Hero', path: 'entities/hero.md' },
+      ]);
+
+      const result = runLinkifyEngine({
+        filePath: 'stories/chapter1.md',
+        lines: ['SuperHero saved the day'],
+        sortedNames,
+        patternMap,
+        dryRun: false,
+        autoConfirm: true,
+      });
+
+      // Only SuperHero should be linkified; Hero should not match inside it
+      expect(result.updatedLines[0]).toBe('[[SuperHero]] saved the day');
+      expect(result.fileChanges).toHaveLength(1);
+      expect(result.fileChanges[0].before).toBe('SuperHero');
     });
   });
 

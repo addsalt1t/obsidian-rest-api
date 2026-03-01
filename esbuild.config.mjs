@@ -34,7 +34,7 @@ const context = await esbuild.context({
   ],
   platform: "node",  // Node.js 내장 모듈 resolve
   format: "cjs",
-  target: "es2018",
+  target: "es2022",
   logLevel: "info",
   sourcemap: prod ? "external" : "inline",
   treeShaking: true,

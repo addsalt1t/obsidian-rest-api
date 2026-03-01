@@ -86,7 +86,7 @@ describe('Vector Service', () => {
   // ---------------------------------------------------------------------------
 
   describe('computeTfIdf', () => {
-    it('should compute TF-IDF vector correctly', () => {
+    it('should compute TF-IDF sparse vector correctly', () => {
       const tokens = ['hello', 'world', 'hello'];
       const idf = new Map<string, number>([
         ['hello', 1.0],
@@ -97,12 +97,13 @@ describe('Vector Service', () => {
 
       // hello: tf = 2/3, idf = 1.0 -> 2/3
       // world: tf = 1/3, idf = 2.0 -> 2/3
-      expect(vector).toHaveLength(2);
-      expect(vector[0]).toBeCloseTo(2 / 3);
-      expect(vector[1]).toBeCloseTo(2 / 3);
+      expect(vector).toBeInstanceOf(Map);
+      expect(vector.size).toBe(2);
+      expect(vector.get('hello')).toBeCloseTo(2 / 3);
+      expect(vector.get('world')).toBeCloseTo(2 / 3);
     });
 
-    it('should return 0 for terms not in tokens', () => {
+    it('should omit terms not present in tokens (sparse)', () => {
       const tokens = ['hello'];
       const idf = new Map<string, number>([
         ['hello', 1.0],
@@ -111,17 +112,31 @@ describe('Vector Service', () => {
 
       const vector = computeTfIdf(tokens, idf);
 
-      expect(vector[0]).toBeCloseTo(1.0); // hello: tf=1/1 * idf=1.0
-      expect(vector[1]).toBe(0); // world: tf=0/1 * idf=2.0 = 0
+      expect(vector.get('hello')).toBeCloseTo(1.0); // hello: tf=1/1 * idf=1.0
+      expect(vector.has('world')).toBe(false); // world not in tokens -> omitted
     });
 
-    it('should return empty vector for empty IDF', () => {
+    it('should return empty map for empty IDF', () => {
       const tokens = ['hello'];
       const idf = new Map<string, number>();
 
       const vector = computeTfIdf(tokens, idf);
 
-      expect(vector).toEqual([]);
+      expect(vector).toBeInstanceOf(Map);
+      expect(vector.size).toBe(0);
+    });
+
+    it('should skip tokens with zero IDF value', () => {
+      const tokens = ['hello', 'world'];
+      const idf = new Map<string, number>([
+        ['hello', 1.0],
+        ['world', 0],
+      ]);
+
+      const vector = computeTfIdf(tokens, idf);
+
+      expect(vector.has('hello')).toBe(true);
+      expect(vector.has('world')).toBe(false);
     });
   });
 
@@ -131,43 +146,50 @@ describe('Vector Service', () => {
 
   describe('cosineSimilarity', () => {
     it('should return 1.0 for identical vectors', () => {
-      const a = [1, 2, 3];
-      const b = [1, 2, 3];
+      const a = new Map([['x', 1], ['y', 2], ['z', 3]]);
+      const b = new Map([['x', 1], ['y', 2], ['z', 3]]);
       expect(cosineSimilarity(a, b)).toBeCloseTo(1.0);
     });
 
     it('should return 0 for orthogonal vectors', () => {
-      const a = [1, 0];
-      const b = [0, 1];
+      const a = new Map([['x', 1]]);
+      const b = new Map([['y', 1]]);
       expect(cosineSimilarity(a, b)).toBeCloseTo(0);
     });
 
     it('should return 0 for empty vectors', () => {
-      expect(cosineSimilarity([], [])).toBe(0);
+      expect(cosineSimilarity(new Map(), new Map())).toBe(0);
     });
 
-    it('should return 0 when vectors have different lengths', () => {
-      const a = [1, 2];
-      const b = [1, 2, 3];
-      expect(cosineSimilarity(a, b)).toBe(0);
+    it('should return 0 when one vector is empty', () => {
+      const a = new Map([['x', 1], ['y', 2]]);
+      expect(cosineSimilarity(a, new Map())).toBe(0);
+      expect(cosineSimilarity(new Map(), a)).toBe(0);
     });
 
-    it('should return 0 for zero vectors', () => {
-      const a = [0, 0, 0];
-      const b = [1, 2, 3];
+    it('should handle vectors with no overlapping keys', () => {
+      const a = new Map([['x', 1], ['y', 2]]);
+      const b = new Map([['z', 3], ['w', 4]]);
       expect(cosineSimilarity(a, b)).toBe(0);
     });
 
     it('should handle negative values', () => {
-      const a = [1, -1];
-      const b = [-1, 1];
+      const a = new Map([['x', 1], ['y', -1]]);
+      const b = new Map([['x', -1], ['y', 1]]);
       expect(cosineSimilarity(a, b)).toBeCloseTo(-1.0);
     });
 
     it('should be symmetric', () => {
-      const a = [1, 2, 3];
-      const b = [4, 5, 6];
+      const a = new Map([['x', 1], ['y', 2], ['z', 3]]);
+      const b = new Map([['x', 4], ['y', 5], ['z', 6]]);
       expect(cosineSimilarity(a, b)).toBeCloseTo(cosineSimilarity(b, a));
+    });
+
+    it('should handle partial overlap', () => {
+      const a = new Map([['x', 1], ['y', 2]]);
+      const b = new Map([['y', 3], ['z', 4]]);
+      // dot = 2*3 = 6, normA = sqrt(1+4) = sqrt(5), normB = sqrt(9+16) = 5
+      expect(cosineSimilarity(a, b)).toBeCloseTo(6 / (Math.sqrt(5) * 5));
     });
   });
 

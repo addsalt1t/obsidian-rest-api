@@ -8,7 +8,6 @@
 export interface EmbeddingEntry {
   path: string;
   mtime: number;
-  vector: number[];
+  vector: Map<string, number>;
   tokens: string[];
-  lastAccess: number;
 }

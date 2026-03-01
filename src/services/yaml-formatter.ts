@@ -32,42 +32,63 @@ export function detectYamlValueKind(value: unknown): YamlValueKind {
     || 'other';
 }
 
-function formatYamlMultilineString(value: string): string {
-  return `|\n${value.split('\n').map((line) => `  ${line}`).join('\n')}`;
+/** Produce `depth` levels of 2-space indentation. */
+function indent(depth: number): string {
+  return '  '.repeat(depth);
 }
 
-function formatYamlString(value: string): string {
-  return (value.includes('\n') && formatYamlMultilineString(value))
+function formatYamlMultilineString(value: string, depth: number): string {
+  return `|\n${value.split('\n').map((line) => `${indent(depth)}${line}`).join('\n')}`;
+}
+
+function formatYamlString(value: string, depth: number): string {
+  return (value.includes('\n') && formatYamlMultilineString(value, depth))
     || (YAML_SPECIAL_CHAR_PATTERN.test(value) && `"${value.replace(/"/g, '\\"')}"`)
     || value;
 }
 
-function formatYamlArray(value: unknown[]): string {
-  return (!value.length && '[]') || `\n${value.map((item) => `  - ${formatYamlValue(item)}`).join('\n')}`;
+function formatYamlArray(value: unknown[], depth: number): string {
+  if (!value.length) return '[]';
+  return `\n${value.map((item) => {
+    const formatted = formatYamlValueAtDepth(item, depth + 1);
+    return `${indent(depth)}- ${formatted}`;
+  }).join('\n')}`;
 }
 
-function formatYamlObject(value: Record<string, unknown>): string {
+function formatYamlObject(value: Record<string, unknown>, depth: number): string {
   const entries = Object.entries(value);
-  return (!entries.length && '{}') || `\n${entries.map(([k, v]) => `  ${k}: ${formatYamlValue(v)}`).join('\n')}`;
+  if (!entries.length) return '{}';
+  return `\n${entries.map(([k, v]) => {
+    const formatted = formatYamlValueAtDepth(v, depth + 1);
+    return `${indent(depth)}${k}: ${formatted}`;
+  }).join('\n')}`;
 }
 
-const YAML_VALUE_FORMATTERS: Record<YamlValueKind, (value: unknown) => string> = {
-  nullish: () => 'null',
-  boolean: (value) => String(value),
-  number: (value) => String(value),
-  string: (value) => formatYamlString(value as string),
-  array: (value) => formatYamlArray(value as unknown[]),
-  object: (value) => formatYamlObject(value as Record<string, unknown>),
-  other: (value) => String(value),
-};
+/**
+ * Internal depth-aware dispatcher. Formats a value at the given nesting depth.
+ */
+function formatYamlValueAtDepth(value: unknown, depth: number): string {
+  const kind = detectYamlValueKind(value);
+  switch (kind) {
+    case 'nullish': return 'null';
+    case 'boolean': return String(value);
+    case 'number': return String(value);
+    case 'string': return formatYamlString(value as string, depth);
+    case 'array': return formatYamlArray(value as unknown[], depth);
+    case 'object': return formatYamlObject(value as Record<string, unknown>, depth);
+    default: return String(value);
+  }
+}
 
 /**
  * Convert a JavaScript value to a YAML-formatted string.
  *
  * Handles: null/undefined, boolean, number, string (with multiline/special chars),
  * arrays, and objects. Used by frontmatter patching to produce valid YAML output.
+ *
+ * Depth starts at 1 because YAML frontmatter values sit one indentation level
+ * from the key (e.g. `key:\n  - item`).
  */
 export function formatYamlValue(value: unknown): string {
-  const kind = detectYamlValueKind(value);
-  return YAML_VALUE_FORMATTERS[kind](value);
+  return formatYamlValueAtDepth(value, 1);
 }

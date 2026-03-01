@@ -169,6 +169,16 @@ interface LinkifyEngineParams extends ScanEngineParams {
   autoConfirm: boolean;
 }
 
+/** Pending replacement candidate collected during the collect phase */
+interface PendingReplacement {
+  matchIndex: number;
+  matchedText: string;
+  particle: string;
+  entity: NameEntry['entity'];
+  linkText: string;
+  before: string;
+}
+
 export function runLinkifyEngine({
   filePath,
   lines,
@@ -188,8 +198,11 @@ export function runLinkifyEngine({
   let fileSkipped = 0;
 
   for (let lineNum = 0; lineNum < updatedLines.length; lineNum++) {
-    let line = updatedLines[lineNum];
-    const originalLine = line;
+    const originalLine = updatedLines[lineNum];
+
+    // -- Collect phase: gather all candidates across all entities --
+    const pending: PendingReplacement[] = [];
+    const alreadyMatched = new Set<number>();
 
     for (const { name, entity } of sortedNames) {
       const shared = patternMap.get(name);
@@ -200,16 +213,28 @@ export function runLinkifyEngine({
       const pattern = new RegExp(shared.source, shared.flags);
 
       let match: RegExpExecArray | null;
-      let offset = 0;
-
       while ((match = pattern.exec(originalLine)) !== null) {
+        const col = match.index;
+        const matchLength = match[0].length;
+
+        // Cross-entity overlap detection (same technique as runScanEngine)
+        let overlaps = false;
+        for (let i = col; i < col + matchLength; i++) {
+          if (alreadyMatched.has(i)) {
+            overlaps = true;
+            break;
+          }
+        }
+        if (overlaps) {
+          continue;
+        }
+
         const matchedText = match[1];
         const particle = match[2] || '';
-        const matchLength = match[0].length;
         const passesKoreanSingleCharBoundary = hasStrictKoreanSingleCharBoundary(
           originalLine,
-          match.index,
-          match.index + matchLength,
+          col,
+          col + matchLength,
           matchedText
         );
         const confidence = getLinkifyConfidence(
@@ -224,33 +249,58 @@ export function runLinkifyEngine({
           continue;
         }
 
+        // Mark positions as matched to prevent cross-entity overlaps
+        for (let i = col; i < col + matchLength; i++) {
+          alreadyMatched.add(i);
+        }
+
         const linkText = matchedText.toLowerCase() === entity.name.toLowerCase()
           ? `[[${entity.name}]]${particle}`
           : `[[${entity.name}|${matchedText}]]${particle}`;
 
         const before = `${matchedText}${particle}`;
-        const col = match.index + offset;
 
-        const lineStart = line.substring(0, col);
-        const lineEnd = line.substring(col + before.length);
-        const newLine = lineStart + linkText + lineEnd;
-
-        if (!dryRun) {
-          line = newLine;
-          updatedLines[lineNum] = line;
-          fileModified = true;
-        }
-
-        fileChanges.push({
-          filePath,
-          line: lineNum + 1,
+        pending.push({
+          matchIndex: col,
+          matchedText,
+          particle,
+          entity,
+          linkText,
           before,
-          after: linkText,
-          applied: !dryRun && shouldApply,
         });
-
-        offset += linkText.length - before.length;
       }
+    }
+
+    if (pending.length === 0) {
+      continue;
+    }
+
+    // -- Sort phase: sort by matchIndex descending (right-to-left) --
+    pending.sort((a, b) => b.matchIndex - a.matchIndex);
+
+    // -- Apply phase: apply replacements right-to-left --
+    let line = originalLine;
+    for (const repl of pending) {
+      const lineStart = line.substring(0, repl.matchIndex);
+      const lineEnd = line.substring(repl.matchIndex + repl.before.length);
+      const newLine = lineStart + repl.linkText + lineEnd;
+
+      if (!dryRun) {
+        line = newLine;
+        fileModified = true;
+      }
+
+      fileChanges.push({
+        filePath,
+        line: lineNum + 1,
+        before: repl.before,
+        after: repl.linkText,
+        applied: !dryRun,
+      });
+    }
+
+    if (!dryRun) {
+      updatedLines[lineNum] = line;
     }
   }
 

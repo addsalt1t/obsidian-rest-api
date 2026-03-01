@@ -1,3 +1,4 @@
+import { LRUCache } from 'lru-cache';
 import { createLogger } from '../../utils/logger';
 import { MAX_CACHE_SIZE } from './constants';
 import { buildIdf, computeTfIdf } from './tfidf';
@@ -5,7 +6,9 @@ import type { EmbeddingEntry } from './types';
 
 const logger = createLogger('Vector');
 
-const embeddingCache = new Map<string, EmbeddingEntry>();
+const embeddingCache = new LRUCache<string, EmbeddingEntry>({
+  max: MAX_CACHE_SIZE,
+});
 let idfCache: Map<string, number> | null = null;
 let idfDirty = true;
 
@@ -28,35 +31,14 @@ export function getEmbeddingPaths(): IterableIterator<string> {
 }
 
 export function getFromEmbeddingCache(key: string): EmbeddingEntry | undefined {
-  const entry = embeddingCache.get(key);
-  if (entry) {
-    entry.lastAccess = Date.now();
-  }
-  return entry;
+  return embeddingCache.get(key);
 }
 
 export function setToEmbeddingCache(
   key: string,
-  entry: Omit<EmbeddingEntry, 'lastAccess'>
+  entry: EmbeddingEntry
 ): void {
-  if (embeddingCache.size >= MAX_CACHE_SIZE) {
-    let oldestKey: string | null = null;
-    let oldestTime = Infinity;
-
-    for (const [cacheKey, cacheEntry] of embeddingCache) {
-      if (cacheEntry.lastAccess < oldestTime) {
-        oldestTime = cacheEntry.lastAccess;
-        oldestKey = cacheKey;
-      }
-    }
-
-    if (oldestKey) {
-      embeddingCache.delete(oldestKey);
-      logger.debug(`Cache eviction: removed ${oldestKey}`);
-    }
-  }
-
-  embeddingCache.set(key, { ...entry, lastAccess: Date.now() });
+  embeddingCache.set(key, entry);
   idfDirty = true;
 }
 
